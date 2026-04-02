@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+
+{% block title %}Ajuste de Stock - CityPapa{% endblock %}
+
+{% block content %}
+<div class="venta-container">
+    <!-- Header -->
+    <div class="venta-header">
+        <h1>🔧 Ajustar Stock</h1>
+        <p class="header-subtitle">Realiza ajustes manuales al inventario</p>
+    </div>
+
+    <div class="form-wrapper">
+        <div class="form-card">
+            <form method="post" class="form-ajuste">
+                {% csrf_token %}
+                
+                <!-- Producto -->
+                <div class="form-group">
+                    <label for="{{ form.producto.id_for_label }}">{{ form.producto.label }}</label>
+                    {{ form.producto }}
+                    {% if form.producto.errors %}
+                        <div class="form-error">{{ form.producto.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Nueva Cantidad -->
+                <div class="form-group">
+                    <label for="{{ form.cantidad.id_for_label }}">{{ form.cantidad.label }}</label>
+                    <div class="help-text">Ingresa la cantidad exacta que debe haber en inventario</div>
+                    {{ form.cantidad }}
+                    {% if form.cantidad.errors %}
+                        <div class="form-error">{{ form.cantidad.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Motivo -->
+                <div class="form-group">
+                    <label for="{{ form.descripcion.id_for_label }}">{{ form.descripcion.label }}</label>
+                    <div class="help-text">Explica el motivo del ajuste (conteo físico, merma, etc.)</div>
+                    {{ form.descripcion }}
+                    {% if form.descripcion.errors %}
+                        <div class="form-error">{{ form.descripcion.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Errores generales -->
+                {% if form.non_field_errors %}
+                    <div class="alert alert-error">
+                        {% for error in form.non_field_errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="alert alert-info">
+                    <strong>⚠️ Nota Importante:</strong> Los ajustes de stock se registran como movimientos en el historial. Asegúrate de ingresar la cantidad correcta.
+                </div>
+
+                <!-- Botones -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-full">
+                        ✅ Confirmar Ajuste
+                    </button>
+                    <a href="{% url 'tienda:inventario' %}" class="btn btn-secondary btn-full">
+                        ← Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .venta-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .venta-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .venta-header h1 {
+        font-size: 2rem;
+        margin-bottom: 10px;
+    }
+
+    .header-subtitle {
+        color: var(--text-muted);
+        font-size: 1.05rem;
+    }
+
+    .form-wrapper {
+        display: flex;
+        justify-content: center;
+    }
+
+    .form-card {
+        background-color: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 30px;
+        width: 100%;
+        max-width: 500px;
+    }
+
+    .form-ajuste {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        color: var(--text-light);
+        font-size: 0.95rem;
+    }
+
+    .help-text {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        font-style: italic;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 12px;
+        background-color: var(--bg-tertiary);
+        border: 2px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-light);
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.1);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .form-error {
+        color: #ef4444;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .alert {
+        padding: 15px;
+        border-radius: 6px;
+        border-left: 4px solid;
+        margin-bottom: 20px;
+    }
+
+    .alert-error {
+        background-color: rgba(239, 68, 68, 0.1);
+        border-left-color: #ef4444;
+        color: #ef4444;
+    }
+
+    .alert-info {
+        background-color: rgba(59, 130, 246, 0.1);
+        border-left-color: #3b82f6;
+        color: #3b82f6;
+    }
+
+    .alert strong {
+        font-weight: 600;
+    }
+
+    .form-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .btn-full {
+        width: 100%;
+        padding: 12px;
+        font-size: 1rem;
+    }
+
+    @media (max-width: 480px) {
+        .venta-container {
+            padding: 10px;
+        }
+
+        .form-card {
+            padding: 20px;
+        }
+
+        .venta-header h1 {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}

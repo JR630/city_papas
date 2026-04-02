@@ -13,7 +13,11 @@ from decimal import Decimal
 import json
 import csv
 
-from tienda.models import Tienda, Producto, UsuarioTienda, Venta
+from tienda.models import Tienda, Producto, UsuarioTienda, Venta, StockActual, MovimientoInventario
+from tienda.forms import MovimientoInventarioEntradaForm, MovimientoInventarioSalidaForm, AjusteStockForm
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def verificar_admin(usuario):
@@ -476,3 +480,327 @@ def exportar_reportes_view(request):
         ])
     
     return response
+
+
+# ============= VISTAS DE INVENTARIO ADMIN =============
+
+@login_required(login_url='login')
+def admin_inventario_view(request):
+    """Vista de inventario consolidado para administrador (todas las tiendas)."""
+    if not verificar_admin(request.user):
+        return redirect('tienda:tienda-dashboard')
+    
+    try:
+        usuario_tienda = request.user.usuario_tienda
+    except UsuarioTienda.DoesNotExist:
+        return redirect('login')
+    
+    # Obtener todos los stocks de todas las tiendas
+    stocks = StockActual.objects.select_related('tienda', 'producto').order_by('producto__categoria', 'producto__nombre', 'tienda__nombre')
+    
+    # Filtros
+    filtro_estado = request.GET.get('estado', '')
+    filtro_tienda = request.GET.get('tienda', '')
+    
+    if filtro_estado:
+        if filtro_estado == 'bajo':
+            stocks = stocks.filter(cantidad__gt=0, cantidad__lt=F('stock_minimo'))
+        elif filtro_estado == 'agotado':
+            stocks = stocks.filter(cantidad=0)
+        elif filtro_estado == 'normal':
+            stocks = stocks.filter(cantidad__gte=F('stock_minimo'))
+    
+    if filtro_tienda:
+        stocks = stocks.filter(tienda_id=filtro_tienda)
+    
+    # Agrupar por categoría
+    from itertools import groupby
+    stocks_list = list(stocks)
+    stocks_por_categoria = {}
+    for categoria, items in groupby(stocks_list, key=lambda x: x.producto.get_categoria_display()):
+        stocks_por_categoria[categoria] = list(items)
+    
+    # Calcular totales globales
+    total_productos = stocks.count()
+    productos_bajo_stock = stocks.filter(cantidad__gt=0, cantidad__lt=F('stock_minimo')).count()
+    productos_agotados = stocks.filter(cantidad=0).count()
+    
+    # Stock por tienda
+    stock_por_tienda = Tienda.objects.filter(activa=True).annotate(
+        total_items=Count('stocks'),
+        total_cantidad=Sum('stocks__cantidad'),
+        items_bajo_stock=Count('stocks', filter=Q(stocks__cantidad__gt=0, stocks__cantidad__lt=F('stocks__stock_minimo'))),
+        items_agotados=Count('stocks', filter=Q(stocks__cantidad=0)),
+    )
+    
+    # Obtener todas las tiendas para el filtro
+    tiendas = Tienda.objects.filter(activa=True).order_by('nombre')
+    
+    context = {
+        'stocks': stocks,
+        'stocks_por_categoria': stocks_por_categoria,
+        'total_productos': total_productos,
+        'productos_bajo_stock': productos_bajo_stock,
+        'productos_agotados': productos_agotados,
+        'filtro_estado': filtro_estado,
+        'filtro_tienda': filtro_tienda,
+        'tiendas': tiendas,
+        'stock_por_tienda': stock_por_tienda,
+        'rol': usuario_tienda.rol,
+        'es_admin': True,
+    }
+    
+    return render(request, 'admin_panel/inventario.html', context)
+
+
+# ============= VISTAS DE MOVIMIENTOS ADMIN =============
+
+@login_required(login_url='login')
+@require_http_methods(["GET", "POST"])
+def admin_entrada_producto_view(request):
+    """Vista para que admin registre entrada de productos."""
+    if not verificar_admin(request.user):
+        return redirect('tienda:tienda-dashboard')
+    
+    tienda_id = request.GET.get('tienda') or request.POST.get('tienda')
+    
+    if not tienda_id:
+        # Mostrar selector de tienda
+        tiendas = Tienda.objects.filter(activa=True).order_by('nombre')
+        return render(request, 'admin_panel/seleccionar_tienda.html', {
+            'tiendas': tiendas,
+            'accion': 'entrada',
+            'url': 'admin_panel:admin-entrada-producto',
+        })
+    
+    try:
+        usuario_tienda = request.user.usuario_tienda
+    except UsuarioTienda.DoesNotExist:
+        return redirect('login')
+    
+    tienda = get_object_or_404(Tienda, id=tienda_id)
+    
+    if request.method == 'POST':
+        form = MovimientoInventarioEntradaForm(request.POST)
+        if form.is_valid():
+            try:
+                movimiento = form.save(commit=False)
+                movimiento.tienda = tienda
+                movimiento.tipo_movimiento = 'entrada'
+                movimiento.registrado_por = request.user
+                movimiento.save()
+                
+                logger.info(f"Entrada registrada por admin: {movimiento.id} - {movimiento.producto.nombre} - Cantidad: {movimiento.cantidad}")
+                
+                return redirect('admin_panel:admin-inventario')
+            except Exception as e:
+                logger.error(f"Error al registrar entrada: {str(e)}")
+                form.add_error(None, f"Error al registrar la entrada: {str(e)}")
+    else:
+        form = MovimientoInventarioEntradaForm()
+    
+    context = {
+        'form': form,
+        'tienda': tienda,
+        'titulo': 'Registrar Entrada de Productos',
+        'rol': usuario_tienda.rol,
+    }
+    
+    return render(request, 'tienda/entrada_producto.html', context)
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET", "POST"])
+def admin_salida_producto_view(request):
+    """Vista para que admin registre salida de productos."""
+    if not verificar_admin(request.user):
+        return redirect('tienda:tienda-dashboard')
+    
+    tienda_id = request.GET.get('tienda') or request.POST.get('tienda')
+    
+    if not tienda_id:
+        # Mostrar selector de tienda
+        tiendas = Tienda.objects.filter(activa=True).order_by('nombre')
+        return render(request, 'admin_panel/seleccionar_tienda.html', {
+            'tiendas': tiendas,
+            'accion': 'salida',
+            'url': 'admin_panel:admin-salida-producto',
+        })
+    
+    try:
+        usuario_tienda = request.user.usuario_tienda
+    except UsuarioTienda.DoesNotExist:
+        return redirect('login')
+    
+    tienda = get_object_or_404(Tienda, id=tienda_id)
+    
+    if request.method == 'POST':
+        form = MovimientoInventarioSalidaForm(request.POST)
+        if form.is_valid():
+            try:
+                producto = form.cleaned_data['producto']
+                cantidad = form.cleaned_data['cantidad']
+                
+                # Verificar stock disponible
+                stock = StockActual.objects.get_or_create(tienda=tienda, producto=producto)[0]
+                if stock.cantidad < cantidad:
+                    form.add_error('cantidad', f'Stock insuficiente. Disponible: {stock.cantidad} unidades')
+                else:
+                    movimiento = form.save(commit=False)
+                    movimiento.tienda = tienda
+                    movimiento.tipo_movimiento = 'salida'
+                    movimiento.registrado_por = request.user
+                    movimiento.save()
+                    
+                    logger.info(f"Salida registrada por admin: {movimiento.id} - {movimiento.producto.nombre} - Cantidad: {movimiento.cantidad}")
+                    
+                    return redirect('admin_panel:admin-inventario')
+            except Exception as e:
+                logger.error(f"Error al registrar salida: {str(e)}")
+                form.add_error(None, f"Error al registrar la salida: {str(e)}")
+    else:
+        form = MovimientoInventarioSalidaForm()
+    
+    context = {
+        'form': form,
+        'tienda': tienda,
+        'titulo': 'Registrar Salida de Productos',
+        'rol': usuario_tienda.rol,
+    }
+    
+    return render(request, 'tienda/salida_producto.html', context)
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET", "POST"])
+def admin_ajuste_stock_view(request):
+    """Vista para que admin ajuste stock."""
+    if not verificar_admin(request.user):
+        return redirect('tienda:tienda-dashboard')
+    
+    tienda_id = request.GET.get('tienda') or request.POST.get('tienda')
+    
+    if not tienda_id:
+        # Mostrar selector de tienda
+        tiendas = Tienda.objects.filter(activa=True).order_by('nombre')
+        return render(request, 'admin_panel/seleccionar_tienda.html', {
+            'tiendas': tiendas,
+            'accion': 'ajuste',
+            'url': 'admin_panel:admin-ajuste-stock',
+        })
+    
+    try:
+        usuario_tienda = request.user.usuario_tienda
+    except UsuarioTienda.DoesNotExist:
+        return redirect('login')
+    
+    tienda = get_object_or_404(Tienda, id=tienda_id)
+    
+    if request.method == 'POST':
+        form = AjusteStockForm(request.POST)
+        if form.is_valid():
+            try:
+                producto = form.cleaned_data['producto']
+                nueva_cantidad = form.cleaned_data['cantidad']
+                descripcion = form.cleaned_data['descripcion']
+                
+                # Crear movimiento de ajuste
+                movimiento = MovimientoInventario.objects.create(
+                    tienda=tienda,
+                    producto=producto,
+                    tipo_movimiento='ajuste',
+                    cantidad=nueva_cantidad,
+                    descripcion=descripcion,
+                    registrado_por=request.user,
+                )
+                
+                logger.info(f"Ajuste de stock realizado por admin: {movimiento.id} - {producto.nombre} - Nueva cantidad: {nueva_cantidad}")
+                
+                return redirect('admin_panel:admin-inventario')
+            except Exception as e:
+                logger.error(f"Error al ajustar stock: {str(e)}")
+                form.add_error(None, f"Error al ajustar el stock: {str(e)}")
+    else:
+        form = AjusteStockForm()
+    
+    context = {
+        'form': form,
+        'tienda': tienda,
+        'titulo': 'Ajustar Stock',
+        'rol': usuario_tienda.rol,
+    }
+    
+    return render(request, 'tienda/ajuste_stock.html', context)
+
+
+@login_required(login_url='login')
+def admin_historial_movimientos_view(request):
+    """Vista del historial de movimientos de inventario para admin (todas las tiendas)."""
+    if not verificar_admin(request.user):
+        return redirect('tienda:tienda-dashboard')
+    
+    try:
+        usuario_tienda = request.user.usuario_tienda
+    except UsuarioTienda.DoesNotExist:
+        return redirect('login')
+    
+    # Obtener movimientos de todas las tiendas
+    movimientos = MovimientoInventario.objects.select_related('producto', 'registrado_por', 'tienda').order_by('-fecha_movimiento')
+    
+    # Filtros
+    filtro_tipo = request.GET.get('tipo', '')
+    filtro_producto = request.GET.get('producto', '')
+    filtro_tienda = request.GET.get('tienda', '')
+    filtro_fecha_desde = request.GET.get('fecha_desde', '')
+    filtro_fecha_hasta = request.GET.get('fecha_hasta', '')
+    
+    if filtro_tipo:
+        movimientos = movimientos.filter(tipo_movimiento=filtro_tipo)
+    
+    if filtro_producto:
+        movimientos = movimientos.filter(producto__id=filtro_producto)
+    
+    if filtro_tienda:
+        movimientos = movimientos.filter(tienda__id=filtro_tienda)
+    
+    if filtro_fecha_desde:
+        try:
+            fecha_desde = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d').date()
+            movimientos = movimientos.filter(fecha_movimiento__date__gte=fecha_desde)
+        except ValueError:
+            pass
+    
+    if filtro_fecha_hasta:
+        try:
+            fecha_hasta = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d').date()
+            movimientos = movimientos.filter(fecha_movimiento__date__lte=fecha_hasta)
+        except ValueError:
+            pass
+    
+    # Paginación
+    from django.core.paginator import Paginator
+    paginator = Paginator(movimientos, 20)
+    page_num = request.GET.get('page', 1)
+    page = paginator.get_page(page_num)
+    
+    # Obtener listas para los filtros
+    productos = Producto.objects.filter(disponible=True).order_by('categoria', 'nombre')
+    tiendas = Tienda.objects.filter(activa=True).order_by('nombre')
+    
+    context = {
+        'movimientos': page.object_list,
+        'page': page,
+        'productos': productos,
+        'tiendas': tiendas,
+        'filtro_tipo': filtro_tipo,
+        'filtro_producto': filtro_producto,
+        'filtro_tienda': filtro_tienda,
+        'filtro_fecha_desde': filtro_fecha_desde,
+        'filtro_fecha_hasta': filtro_fecha_hasta,
+        'total_movimientos': paginator.count,
+        'rol': usuario_tienda.rol,
+        'es_admin': True,
+    }
+    
+    return render(request, 'admin_panel/historial_movimientos.html', context)
+

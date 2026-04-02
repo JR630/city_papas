@@ -15,7 +15,8 @@ from decimal import Decimal
 import json
 import logging
 
-from .models import Tienda, Producto, UsuarioTienda, Venta, CierreCaja
+from .models import Tienda, Producto, UsuarioTienda, Venta, CierreCaja, StockActual, MovimientoInventario
+from .forms import MovimientoInventarioEntradaForm, MovimientoInventarioSalidaForm, AjusteStockForm, StockMinimoForm
 
 logger = logging.getLogger(__name__)
 
@@ -261,7 +262,32 @@ def registrar_venta_view(request):
         return redirect('login')
     
     tienda = usuario_tienda.tienda
-    productos = Producto.objects.filter(disponible=True)
+    
+    # Ordenar productos por categoría personalizada: Papas, Salsas, Adiciones, Bebidas
+    from django.db.models import Case, When, Value, IntegerField
+    
+    categoria_order = Case(
+        When(categoria='papas', then=Value(0)),
+        When(categoria='salsas', then=Value(1)),
+        When(categoria='adiciones', then=Value(2)),
+        When(categoria='bebidas', then=Value(3)),
+        default=Value(4),
+        output_field=IntegerField(),
+    )
+    
+    productos = Producto.objects.filter(disponible=True).annotate(
+        categoria_orden=categoria_order
+    ).order_by('categoria_orden', 'nombre')
+    
+    # Agrupar productos por categoría en el orden correcto
+    categorias_orden = ['Papas', 'Salsas', 'Adiciones', 'Bebidas']
+    productos_agrupados = {}
+    
+    for categoria in categorias_orden:
+        categoria_lower = categoria.lower()
+        productos_agrupados[categoria] = [
+            p for p in productos if p.get_categoria_display().lower() == categoria_lower
+        ]
     
     if request.method == 'POST':
         try:
@@ -343,11 +369,15 @@ def registrar_venta_view(request):
             logger.error(f"Error registrando venta: {str(e)}")
             return render(request, 'tienda/registrar_venta.html', {
                 'productos': productos,
+                'categorias_orden': categorias_orden,
+                'productos_agrupados': productos_agrupados,
                 'error': f'Error en los datos: {str(e)}'
             })
     
     context = {
         'productos': productos,
+        'categorias_orden': categorias_orden,
+        'productos_agrupados': productos_agrupados,
         'hoy': timezone.now().date(),
         'rol': usuario_tienda.rol,
     }
@@ -680,3 +710,280 @@ def reportes_view(request):
     }
     
     return render(request, 'tienda/reportes.html', context)
+
+
+# ============= VISTAS DE INVENTARIO =============
+
+@login_required(login_url='login')
+def inventario_view(request):
+    """Vista del inventario con stock actual de los productos de la tienda."""
+    try:
+        usuario_tienda = request.user.usuario_tienda
+    except UsuarioTienda.DoesNotExist:
+        return redirect('login')
+    
+    # Si es administrador, redirigir a su vista consolidada
+    if usuario_tienda.rol == 'administrador':
+        return redirect('admin_panel:admin-inventario')
+    
+    tienda = usuario_tienda.tienda
+    
+    # Obtener todos los stocks asociados a esta tienda
+    stocks = StockActual.objects.filter(tienda=tienda).select_related('producto').order_by('producto__categoria', 'producto__nombre')
+    
+    # Filtro por estado de stock
+    filtro_estado = request.GET.get('estado', '')
+    if filtro_estado:
+        if filtro_estado == 'bajo':
+            stocks = stocks.filter(cantidad__gt=0, cantidad__lt=F('stock_minimo'))
+        elif filtro_estado == 'agotado':
+            stocks = stocks.filter(cantidad=0)
+        elif filtro_estado == 'normal':
+            stocks = stocks.filter(cantidad__gte=F('stock_minimo'))
+    
+    # Agrupar por categoría
+    from itertools import groupby
+    stocks_list = list(stocks)
+    stocks_por_categoria = {}
+    for categoria, items in groupby(stocks_list, key=lambda x: x.producto.get_categoria_display()):
+        stocks_por_categoria[categoria] = list(items)
+    
+    # Calcular totales
+    total_productos = stocks.count()
+    productos_bajo_stock = stocks.filter(cantidad__lt=F('stock_minimo')).count()
+    productos_agotados = stocks.filter(cantidad=0).count()
+    
+    context = {
+        'tienda': tienda,
+        'stocks': stocks,
+        'stocks_por_categoria': stocks_por_categoria,
+        'total_productos': total_productos,
+        'productos_bajo_stock': productos_bajo_stock,
+        'productos_agotados': productos_agotados,
+        'filtro_estado': filtro_estado,
+        'rol': usuario_tienda.rol,
+    }
+    
+    return render(request, 'tienda/inventario.html', context)
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET", "POST"])
+def entrada_producto_view(request):
+    """Vista para registrar entrada de productos al inventario."""
+    try:
+        usuario_tienda = request.user.usuario_tienda
+    except UsuarioTienda.DoesNotExist:
+        return redirect('login')
+    
+    # Solo tiendas acceden aquí, admins van a su vista
+    if usuario_tienda.rol == 'administrador':
+        return redirect('admin_panel:admin-inventario')
+    
+    tienda = usuario_tienda.tienda
+    
+    if request.method == 'POST':
+        form = MovimientoInventarioEntradaForm(request.POST)
+        if form.is_valid():
+            try:
+                movimiento = form.save(commit=False)
+                movimiento.tienda = tienda
+                movimiento.tipo_movimiento = 'entrada'
+                movimiento.registrado_por = request.user
+                movimiento.save()
+                
+                logger.info(f"Entrada registrada: {movimiento.id} - {movimiento.producto.nombre} - Cantidad: {movimiento.cantidad}")
+                
+                return redirect('tienda:inventario')
+            except Exception as e:
+                logger.error(f"Error al registrar entrada: {str(e)}")
+                form.add_error(None, f"Error al registrar la entrada: {str(e)}")
+    else:
+        form = MovimientoInventarioEntradaForm()
+    
+    context = {
+        'form': form,
+        'tienda': tienda,
+        'titulo': 'Registrar Entrada de Productos',
+        'rol': usuario_tienda.rol,
+    }
+    
+    return render(request, 'tienda/entrada_producto.html', context)
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET", "POST"])
+def salida_producto_view(request):
+    """Vista para registrar salida de productos del inventario."""
+    try:
+        usuario_tienda = request.user.usuario_tienda
+    except UsuarioTienda.DoesNotExist:
+        return redirect('login')
+    
+    # Solo tiendas acceden aquí, admins van a su vista
+    if usuario_tienda.rol == 'administrador':
+        return redirect('admin_panel:admin-inventario')
+    
+    tienda = usuario_tienda.tienda
+    
+    if request.method == 'POST':
+        form = MovimientoInventarioSalidaForm(request.POST)
+        if form.is_valid():
+            try:
+                producto = form.cleaned_data['producto']
+                cantidad = form.cleaned_data['cantidad']
+                
+                # Verificar stock disponible
+                stock = StockActual.objects.get_or_create(tienda=tienda, producto=producto)[0]
+                if stock.cantidad < cantidad:
+                    form.add_error('cantidad', f'Stock insuficiente. Disponible: {stock.cantidad} unidades')
+                else:
+                    movimiento = form.save(commit=False)
+                    movimiento.tienda = tienda
+                    movimiento.tipo_movimiento = 'salida'
+                    movimiento.registrado_por = request.user
+                    movimiento.save()
+                    
+                    logger.info(f"Salida registrada: {movimiento.id} - {movimiento.producto.nombre} - Cantidad: {movimiento.cantidad}")
+                    
+                    return redirect('tienda:inventario')
+            except Exception as e:
+                logger.error(f"Error al registrar salida: {str(e)}")
+                form.add_error(None, f"Error al registrar la salida: {str(e)}")
+    else:
+        form = MovimientoInventarioSalidaForm()
+    
+    context = {
+        'form': form,
+        'tienda': tienda,
+        'titulo': 'Registrar Salida de Productos',
+        'rol': usuario_tienda.rol,
+    }
+    
+    return render(request, 'tienda/salida_producto.html', context)
+
+
+@login_required(login_url='login')
+def historial_movimientos_view(request):
+    """Vista del historial de movimientos de inventario."""
+    try:
+        usuario_tienda = request.user.usuario_tienda
+    except UsuarioTienda.DoesNotExist:
+        return redirect('login')
+    
+    # Solo tiendas ven historial, admins van a su vista
+    if usuario_tienda.rol == 'administrador':
+        return redirect('admin_panel:admin-inventario')
+    
+    tienda = usuario_tienda.tienda
+    
+    # Obtener movimientos
+    movimientos = MovimientoInventario.objects.filter(tienda=tienda).select_related('producto', 'registrado_por').order_by('-fecha_movimiento')
+    
+    # Filtros
+    filtro_tipo = request.GET.get('tipo', '')
+    filtro_producto = request.GET.get('producto', '')
+    filtro_fecha_desde = request.GET.get('fecha_desde', '')
+    filtro_fecha_hasta = request.GET.get('fecha_hasta', '')
+    
+    if filtro_tipo:
+        movimientos = movimientos.filter(tipo_movimiento=filtro_tipo)
+    
+    if filtro_producto:
+        movimientos = movimientos.filter(producto__id=filtro_producto)
+    
+    if filtro_fecha_desde:
+        try:
+            fecha_desde = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d').date()
+            movimientos = movimientos.filter(fecha_movimiento__date__gte=fecha_desde)
+        except ValueError:
+            pass
+    
+    if filtro_fecha_hasta:
+        try:
+            fecha_hasta = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d').date()
+            movimientos = movimientos.filter(fecha_movimiento__date__lte=fecha_hasta)
+        except ValueError:
+            pass
+    
+    # Paginación
+    from django.core.paginator import Paginator
+    paginator = Paginator(movimientos, 20)
+    page_num = request.GET.get('page', 1)
+    page = paginator.get_page(page_num)
+    
+    # Obtener lista de productos para el filtro
+    productos = Producto.objects.filter(disponible=True).order_by('categoria', 'nombre')
+    
+    context = {
+        'tienda': tienda,
+        'movimientos': page.object_list,
+        'page': page,
+        'productos': productos,
+        'filtro_tipo': filtro_tipo,
+        'filtro_producto': filtro_producto,
+        'filtro_fecha_desde': filtro_fecha_desde,
+        'filtro_fecha_hasta': filtro_fecha_hasta,
+        'total_movimientos': paginator.count,
+        'rol': usuario_tienda.rol,
+    }
+    
+    return render(request, 'tienda/historial_movimientos.html', context)
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET", "POST"])
+def ajuste_stock_view(request):
+    """Vista para hacer ajustes manuales al stock."""
+    try:
+        usuario_tienda = request.user.usuario_tienda
+        if usuario_tienda.rol != 'administrador':
+            return redirect('tienda:tienda-dashboard')
+    except UsuarioTienda.DoesNotExist:
+        return redirect('login')
+    
+    tienda_id = request.GET.get('tienda') or request.POST.get('tienda')
+    if not tienda_id:
+        # Si no hay tienda especificada, solo admin puede ver todas
+        tiendas = Tienda.objects.all()
+    else:
+        tiendas = Tienda.objects.filter(id=tienda_id)
+    
+    if request.method == 'POST':
+        tienda = get_object_or_404(Tienda, id=request.POST.get('tienda'))
+        form = AjusteStockForm(request.POST)
+        
+        if form.is_valid():
+            try:
+                producto = form.cleaned_data['producto']
+                nueva_cantidad = form.cleaned_data['cantidad']
+                descripcion = form.cleaned_data['descripcion']
+                
+                # Crear movimiento de ajuste
+                movimiento = MovimientoInventario.objects.create(
+                    tienda=tienda,
+                    producto=producto,
+                    tipo_movimiento='ajuste',
+                    cantidad=nueva_cantidad,
+                    descripcion=descripcion,
+                    registrado_por=request.user,
+                )
+                
+                logger.info(f"Ajuste de stock realizado: {movimiento.id} - {producto.nombre} - Nueva cantidad: {nueva_cantidad}")
+                
+                return redirect('admin_panel:admin-inventario')
+            except Exception as e:
+                logger.error(f"Error al ajustar stock: {str(e)}")
+                form.add_error(None, f"Error al ajustar el stock: {str(e)}")
+    else:
+        form = AjusteStockForm()
+    
+    context = {
+        'form': form,
+        'tiendas': tiendas,
+        'tienda_id': tienda_id,
+        'titulo': 'Ajustar Stock',
+        'rol': usuario_tienda.rol,
+    }
+    
+    return render(request, 'tienda/ajuste_stock.html', context)

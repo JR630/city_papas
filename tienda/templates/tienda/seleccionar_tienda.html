@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}Seleccionar Tienda - CityPapa{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px; margin-top: 40px;">
+    <div class="form-container">
+        <h1 style="text-align: center; margin-bottom: 30px; color: #0D0D0D;">Seleccionar Tienda</h1>
+        
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">
+            Selecciona la tienda donde deseas registrar la <strong>{{ accion|upper }}</strong> de productos:
+        </p>
+        
+        <div class="tiendas-list">
+            {% for tienda in tiendas %}
+                <a href="?tienda={{ tienda.id }}" class="tienda-link">
+                    <div class="tienda-option">
+                        <div class="tienda-info">
+                            <h3>{{ tienda.nombre }}</h3>
+                            <p>{{ tienda.ciudad }}</p>
+                        </div>
+                        <div class="tienda-icon">→</div>
+                    </div>
+                </a>
+            {% empty %}
+                <p style="text-align: center; color: #999;">No hay tiendas disponibles.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-container {
+        background: white;
+        border: 2px solid #FFD600;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .tiendas-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .tienda-link {
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .tienda-option {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px;
+        border: 2px solid #eee;
+        border-radius: 6px;
+        background: #f9f9f9;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .tienda-option:hover {
+        border-color: #FF6B00;
+        background: #fff5f0;
+        transform: translateX(5px);
+    }
+    
+    .tienda-info h3 {
+        margin: 0 0 5px 0;
+        color: #FF6B00;
+        font-size: 1.1em;
+    }
+    
+    .tienda-info p {
+        margin: 0;
+        color: #999;
+        font-size: 0.9em;
+    }
+    
+    .tienda-icon {
+        font-size: 1.5em;
+        color: #FFD600;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}

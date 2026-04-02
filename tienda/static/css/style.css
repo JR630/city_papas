@@ -97,6 +97,8 @@ p {
     justify-content: space-between;
     align-items: center;
     padding: 0 20px;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
 .navbar-brand {
@@ -106,6 +108,7 @@ p {
     color: var(--accent);
     text-transform: uppercase;
     letter-spacing: 0.1em;
+    flex-shrink: 0;
 }
 
 .navbar-brand span {
@@ -116,6 +119,8 @@ p {
     display: flex;
     list-style: none;
     gap: 2rem;
+    flex: 1;
+    justify-content: center;
 }
 
 .navbar-item a {
@@ -154,6 +159,55 @@ p {
 .navbar-user a:hover {
     background-color: var(--accent);
     color: var(--bg-dark);
+}
+
+/* Botón hamburguesa para móviles */
+.navbar-toggle {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    z-index: 101;
+}
+
+.navbar-toggle.active .hamburger::before {
+    transform: rotate(45deg) translate(5px, 5px);
+}
+
+.navbar-toggle.active .hamburger {
+    background: transparent;
+}
+
+.navbar-toggle.active .hamburger::after {
+    transform: rotate(-45deg) translate(-5px, 5px);
+}
+
+.hamburger {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background-color: var(--accent);
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.hamburger::before,
+.hamburger::after {
+    content: '';
+    width: 24px;
+    height: 2px;
+    background-color: var(--accent);
+    position: absolute;
+    transition: all 0.3s ease;
+}
+
+.hamburger::before {
+    top: -8px;
+}
+
+.hamburger::after {
+    bottom: -8px;
 }
 
 /* Botones */

@@ -23,8 +23,15 @@
                 City<span>Papa</span>
             </div>
             
+            <!-- Botón hamburguesa para móviles -->
             {% if user.is_authenticated %}
-            <ul class="navbar-menu">
+            <button class="navbar-toggle" id="navbarToggle" aria-label="Toggle navigation">
+                <span class="hamburger"></span>
+            </button>
+            {% endif %}
+            
+            {% if user.is_authenticated %}
+            <ul class="navbar-menu" id="navbarMenu">
                 {% if rol == 'administrador' %}
                     <li class="navbar-item {% if request.resolver_match.url_name == 'admin-dashboard' %}active{% endif %}">
                         <a href="{% url 'admin_panel:admin-dashboard' %}">Dashboard</a>
@@ -35,6 +42,9 @@
                     <li class="navbar-item {% if 'producto' in request.resolver_match.url_name %}active{% endif %}">
                         <a href="{% url 'admin_panel:productos-list' %}">Productos</a>
                     </li>
+                    <li class="navbar-item {% if request.resolver_match.url_name == 'admin-inventario' %}active{% endif %}">
+                        <a href="{% url 'admin_panel:admin-inventario' %}">Inventario</a>
+                    </li>
                     <li class="navbar-item {% if 'reporte' in request.resolver_match.url_name %}active{% endif %}">
                         <a href="{% url 'admin_panel:reportes' %}">Reportes</a>
                     </li>
@@ -44,6 +54,9 @@
                     </li>
                     <li class="navbar-item {% if request.resolver_match.url_name == 'registrar-venta' %}active{% endif %}">
                         <a href="{% url 'tienda:registrar-venta' %}">Registrar Venta</a>
+                    </li>
+                    <li class="navbar-item {% if 'inventario' in request.resolver_match.url_name or 'movimiento' in request.resolver_match.url_name %}active{% endif %}">
+                        <a href="{% url 'tienda:inventario' %}">Inventario</a>
                     </li>
                     <li class="navbar-item {% if request.resolver_match.url_name == 'historial-ventas' %}active{% endif %}">
                         <a href="{% url 'tienda:historial-ventas' %}">Historial</a>
@@ -77,6 +90,27 @@
 
     <!-- Scripts -->
     <script src="{% static 'js/main.js' %}"></script>
+    <script>
+        // Navbar mobile toggle
+        const navbarToggle = document.getElementById('navbarToggle');
+        const navbarMenu = document.getElementById('navbarMenu');
+        
+        if (navbarToggle) {
+            navbarToggle.addEventListener('click', function() {
+                navbarMenu.classList.toggle('active');
+                this.classList.toggle('active');
+            });
+            
+            // Cerrar menú al hacer click en un enlace
+            const navbarItems = navbarMenu.querySelectorAll('a');
+            navbarItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    navbarMenu.classList.remove('active');
+                    navbarToggle.classList.remove('active');
+                });
+            });
+        }
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

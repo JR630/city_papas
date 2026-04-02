@@ -25,4 +25,11 @@ urlpatterns = [
     # Reportes
     path('reportes/', views.reportes_view, name='reportes'),
     path('reportes/exportar/', views.exportar_reportes_view, name='exportar-reportes'),
+    
+    # Inventario
+    path('inventario/', views.admin_inventario_view, name='admin-inventario'),
+    path('inventario/entrada/', views.admin_entrada_producto_view, name='admin-entrada-producto'),
+    path('inventario/salida/', views.admin_salida_producto_view, name='admin-salida-producto'),
+    path('inventario/ajuste/', views.admin_ajuste_stock_view, name='admin-ajuste-stock'),
+    path('inventario/historial/', views.admin_historial_movimientos_view, name='admin-historial-movimientos'),
 ]

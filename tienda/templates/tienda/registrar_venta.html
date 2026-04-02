@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load custom_filters %}
 
 {% block title %}Registrar Venta - CityPapa{% endblock %}
 
@@ -28,43 +29,46 @@
             
             <!-- Acordeón de Categorías -->
             <div class="accordion">
-                {% regroup productos by get_categoria_display as productos_por_categoria %}
-                {% for categoria in productos_por_categoria %}
-                    <div class="accordion-item">
-                        <button type="button" class="accordion-header" onclick="toggleAccordion(event)">
-                            <span class="accordion-toggle">▼</span>
-                            <span class="accordion-title">{{ categoria.grouper }}</span>
-                            <span class="accordion-count">{{ categoria.list|length }} items</span>
-                        </button>
-                        <div class="accordion-content">
-                            <div class="products-grid">
-                                {% for producto in categoria.list %}
-                                    <div class="product-card" onclick="agregarAlCarrito({{ producto.id }}, '{{ producto.nombre }}', {{ producto.precio }})">
-                                        <div class="product-icon">
-                                            {% if 'papa' in producto.nombre|lower %}
-                                                <span class="icon-papa"></span>
-                                            {% elif 'bebida' in categoria.grouper|lower or producto.categoria == 'bebidas' %}
-                                                <span class="icon-bebida"></span>
-                                            {% elif 'salsa' in categoria.grouper|lower %}
-                                                <span class="icon-salsa"></span>
-                                            {% else %}
-                                                <span class="icon-adicion"></span>
-                                            {% endif %}
-                                        </div>
-                                        <div class="product-info">
-                                            <h4 class="product-name">{{ producto.nombre }}</h4>
-                                            <p class="product-description">{{ producto.descripcion }}</p>
-                                            <div class="product-price">
-                                                <span class="price-label">$</span>
-                                                <span class="price-value">{{ producto.precio }}</span>
+                {% for categoria_nombre in categorias_orden %}
+                    {% with productos_categoria=productos_agrupados|get_item:categoria_nombre %}
+                        {% if productos_categoria %}
+                            <div class="accordion-item">
+                                <button type="button" class="accordion-header" onclick="toggleAccordion(event)">
+                                    <span class="accordion-toggle">▼</span>
+                                    <span class="accordion-title">{{ categoria_nombre }}</span>
+                                    <span class="accordion-count">{{ productos_categoria|length }} items</span>
+                                </button>
+                                <div class="accordion-content">
+                                    <div class="products-grid">
+                                        {% for producto in productos_categoria %}
+                                            <div class="product-card" onclick="agregarAlCarrito({{ producto.id }}, '{{ producto.nombre }}', {{ producto.precio }})">
+                                                <div class="product-icon">
+                                                    {% if 'papa' in producto.nombre|lower %}
+                                                        <span class="icon-papa"></span>
+                                                    {% elif 'bebida' in categoria_nombre|lower %}
+                                                        <span class="icon-bebida"></span>
+                                                    {% elif 'salsa' in categoria_nombre|lower %}
+                                                        <span class="icon-salsa"></span>
+                                                    {% else %}
+                                                        <span class="icon-adicion"></span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="product-info">
+                                                    <h4 class="product-name">{{ producto.nombre }}</h4>
+                                                    <p class="product-description">{{ producto.descripcion }}</p>
+                                                    <div class="product-price">
+                                                        <span class="price-label">$</span>
+                                                        <span class="price-value">{{ producto.precio }}</span>
+                                                    </div>
+                                                </div>
+                                                <div class="product-add-btn">+</div>
                                             </div>
-                                        </div>
-                                        <div class="product-add-btn">+</div>
+                                        {% endfor %}
                                     </div>
-                                {% endfor %}
+                                </div>
                             </div>
-                        </div>
-                    </div>
+                        {% endif %}
+                    {% endwith %}
                 {% endfor %}
             </div>
         </div>

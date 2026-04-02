@@ -1,0 +1,339 @@
+{% extends 'base.html' %}
+
+{% block title %}Historial de Movimientos - CityPapa Admin{% endblock %}
+
+{% block content %}
+<div class="inventory-container">
+    <!-- Header -->
+    <div class="inventory-header">
+        <h1>Historial de Movimientos</h1>
+        <p class="header-subtitle">Registro de todos los movimientos de inventario en todas las tiendas</p>
+    </div>
+
+    <!-- Filtros -->
+    <div class="inventory-filters">
+        <form method="get" class="filter-form">
+            <div class="filter-group">
+                <label>Tipo de Movimiento:</label>
+                <select name="tipo">
+                    <option value="">Todos</option>
+                    <option value="entrada" {% if filtro_tipo == 'entrada' %}selected{% endif %}>Entrada</option>
+                    <option value="salida" {% if filtro_tipo == 'salida' %}selected{% endif %}>Salida</option>
+                    <option value="ajuste" {% if filtro_tipo == 'ajuste' %}selected{% endif %}>Ajuste</option>
+                    <option value="devolucion" {% if filtro_tipo == 'devolucion' %}selected{% endif %}>Devolución</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Tienda:</label>
+                <select name="tienda">
+                    <option value="">Todas</option>
+                    {% for tienda in tiendas %}
+                        <option value="{{ tienda.id }}" {% if filtro_tienda == tienda.id|stringformat:'s' %}selected{% endif %}>
+                            {{ tienda.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Producto:</label>
+                <select name="producto">
+                    <option value="">Todos</option>
+                    {% for producto in productos %}
+                        <option value="{{ producto.id }}" {% if filtro_producto == producto.id|stringformat:'s' %}selected{% endif %}>
+                            {{ producto.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Desde:</label>
+                <input type="date" name="fecha_desde" value="{{ filtro_fecha_desde }}">
+            </div>
+            
+            <div class="filter-group">
+                <label>Hasta:</label>
+                <input type="date" name="fecha_hasta" value="{{ filtro_fecha_hasta }}">
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+        </form>
+    </div>
+
+    <!-- Resumen -->
+    <div style="background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border);">
+        <p style="margin: 0; color: var(--text-muted);">
+            Total de movimientos: <strong>{{ total_movimientos }}</strong>
+        </p>
+    </div>
+
+    <!-- Tabla de Movimientos -->
+    <div class="inventory-list">
+        <div class="inventory-section">
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tienda</th>
+                        <th>Producto</th>
+                        <th>Tipo</th>
+                        <th class="text-center">Cantidad</th>
+                        <th class="text-center">Stock Anterior</th>
+                        <th class="text-center">Stock Posterior</th>
+                        <th>Registrado por</th>
+                        <th>Descripción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movimiento in movimientos %}
+                        <tr>
+                            <td>{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</td>
+                            <td style="font-weight: bold; color: var(--primary);">{{ movimiento.tienda.nombre }}</td>
+                            <td>{{ movimiento.producto.nombre }}</td>
+                            <td>
+                                {% if movimiento.tipo_movimiento == 'entrada' %}
+                                    <span class="status-badge status-normal">Entrada</span>
+                                {% elif movimiento.tipo_movimiento == 'salida' %}
+                                    <span class="status-badge status-bajo">Salida</span>
+                                {% elif movimiento.tipo_movimiento == 'ajuste' %}
+                                    <span class="status-badge" style="background-color: rgba(156, 39, 176, 0.2); color: #9C27B0;">Ajuste</span>
+                                {% else %}
+                                    <span class="status-badge" style="background-color: rgba(33, 150, 243, 0.2); color: #2196F3;">{{ movimiento.get_tipo_movimiento_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center" style="font-weight: bold;">{{ movimiento.cantidad }}</td>
+                            <td class="text-center">{{ movimiento.stock_anterior }}</td>
+                            <td class="text-center">{{ movimiento.stock_posterior }}</td>
+                            <td>{{ movimiento.registrado_por.username }}</td>
+                            <td>{{ movimiento.descripcion|truncatewords:10 }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="9" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                                No hay movimientos que coincidan con los filtros seleccionados.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Paginación -->
+    {% if page.has_other_pages %}
+        <div class="pagination" style="margin-top: 30px; display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">
+            {% if page.has_previous %}
+                <a href="?page=1{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}{% if filtro_tienda %}&tienda={{ filtro_tienda }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}" class="pagination-btn">
+                    Primera
+                </a>
+                <a href="?page={{ page.previous_page_number }}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}{% if filtro_tienda %}&tienda={{ filtro_tienda }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}" class="pagination-btn">
+                    Anterior
+                </a>
+            {% endif %}
+
+            <span style="color: var(--text-muted);">
+                Página {{ page.number }} de {{ page.paginator.num_pages }}
+            </span>
+
+            {% if page.has_next %}
+                <a href="?page={{ page.next_page_number }}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}{% if filtro_tienda %}&tienda={{ filtro_tienda }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}" class="pagination-btn">
+                    Siguiente
+                </a>
+                <a href="?page={{ page.paginator.num_pages }}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}{% if filtro_tienda %}&tienda={{ filtro_tienda }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}" class="pagination-btn">
+                    Última
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .inventory-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    /* Header */
+    .inventory-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .inventory-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+
+    .header-subtitle {
+        color: var(--text-muted);
+        font-size: 1.05rem;
+    }
+
+    /* Filters */
+    .inventory-filters {
+        background-color: var(--bg-secondary);
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        border: 1px solid var(--border);
+    }
+
+    .filter-form {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .filter-group label {
+        font-weight: 600;
+        color: var(--text-light);
+        font-size: 0.9rem;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        padding: 8px 12px;
+        background-color: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text-light);
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .filter-group input {
+        min-width: 150px;
+    }
+
+    /* List */
+    .inventory-list {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+    }
+
+    .inventory-section {
+        background-color: var(--bg-secondary);
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+    }
+
+    .inventory-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .inventory-table thead {
+        background-color: var(--bg-tertiary);
+        border-bottom: 2px solid var(--border);
+    }
+
+    .inventory-table th {
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-light);
+        font-size: 0.95rem;
+    }
+
+    .inventory-table td {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-light);
+        font-size: 0.9rem;
+    }
+
+    .inventory-table tbody tr:hover {
+        background-color: var(--bg-tertiary);
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    .status-badge.status-normal {
+        background-color: rgba(76, 175, 80, 0.2);
+        color: #4CAF50;
+    }
+
+    .status-badge.status-bajo {
+        background-color: rgba(255, 152, 0, 0.2);
+        color: #FF9800;
+    }
+
+    /* Pagination */
+    .pagination-btn {
+        padding: 8px 12px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .pagination-btn:hover {
+        background-color: #ff5200;
+        transform: translateY(-2px);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .inventory-header h1 {
+            font-size: 1.8rem;
+        }
+
+        .filter-form {
+            flex-direction: column;
+        }
+
+        .filter-group {
+            width: 100%;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            width: 100%;
+        }
+
+        .inventory-table {
+            font-size: 0.85rem;
+        }
+
+        .inventory-table th,
+        .inventory-table td {
+            padding: 8px;
+        }
+
+        .pagination {
+            gap: 5px;
+        }
+
+        .pagination-btn {
+            padding: 6px 10px;
+            font-size: 0.85rem;
+        }
+    }
+</style>
+{% endblock %}

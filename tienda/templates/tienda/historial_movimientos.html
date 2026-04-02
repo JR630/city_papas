@@ -1,0 +1,400 @@
+{% extends 'base.html' %}
+
+{% block title %}Historial de Movimientos - CityPapa{% endblock %}
+
+{% block content %}
+<div class="historial-container">
+    <!-- Header -->
+    <div class="historial-header">
+        <h1>📋 Historial de Movimientos</h1>
+        <p class="header-subtitle">Registro completo de entradas y salidas de inventario</p>
+    </div>
+
+    <!-- Filtros -->
+    <div class="historial-filters">
+        <form method="get" class="filter-form">
+            <div class="filter-group">
+                <label>Tipo de Movimiento:</label>
+                <select name="tipo">
+                    <option value="">Todos</option>
+                    <option value="entrada" {% if filtro_tipo == 'entrada' %}selected{% endif %}>Entrada</option>
+                    <option value="salida" {% if filtro_tipo == 'salida' %}selected{% endif %}>Salida</option>
+                    <option value="ajuste" {% if filtro_tipo == 'ajuste' %}selected{% endif %}>Ajuste</option>
+                    <option value="devolucion" {% if filtro_tipo == 'devolucion' %}selected{% endif %}>Devolución</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>Producto:</label>
+                <select name="producto">
+                    <option value="">Todos</option>
+                    {% for producto in productos %}
+                        <option value="{{ producto.id }}" {% if filtro_producto|stringformat:"s" == producto.id|stringformat:"s" %}selected{% endif %}>
+                            {{ producto.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>Desde:</label>
+                <input type="date" name="fecha_desde" value="{{ filtro_fecha_desde }}">
+            </div>
+
+            <div class="filter-group">
+                <label>Hasta:</label>
+                <input type="date" name="fecha_hasta" value="{{ filtro_fecha_hasta }}">
+            </div>
+
+            <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
+            <a href="{% url 'tienda:historial-movimientos' %}" class="btn btn-secondary">🔄 Limpiar</a>
+        </form>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="historial-stats">
+        <div class="stat-item">
+            <span class="stat-label">Total de Movimientos</span>
+            <span class="stat-value">{{ total_movimientos }}</span>
+        </div>
+    </div>
+
+    <!-- Tabla de Movimientos -->
+    <div class="historial-table-wrapper">
+        {% if movimientos %}
+            <table class="historial-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Producto</th>
+                        <th>Tipo</th>
+                        <th class="text-center">Cantidad</th>
+                        <th class="text-center">Stock Anterior</th>
+                        <th class="text-center">Stock Posterior</th>
+                        <th>Referencia</th>
+                        <th>Registrado por</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movimiento in movimientos %}
+                        <tr class="movimiento-{{ movimiento.tipo_movimiento }}">
+                            <td>{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</td>
+                            <td>{{ movimiento.producto.nombre }}</td>
+                            <td>
+                                {% if movimiento.tipo_movimiento == 'entrada' %}
+                                    <span class="type-badge type-entrada">➕ Entrada</span>
+                                {% elif movimiento.tipo_movimiento == 'salida' %}
+                                    <span class="type-badge type-salida">➖ Salida</span>
+                                {% elif movimiento.tipo_movimiento == 'ajuste' %}
+                                    <span class="type-badge type-ajuste">🔧 Ajuste</span>
+                                {% elif movimiento.tipo_movimiento == 'devolucion' %}
+                                    <span class="type-badge type-devolucion">↩️ Devolución</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if movimiento.tipo_movimiento == 'salida' or movimiento.tipo_movimiento == 'devolucion' %}
+                                    <span class="qty-red">-{{ movimiento.cantidad }}</span>
+                                {% else %}
+                                    <span class="qty-green">+{{ movimiento.cantidad }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">{{ movimiento.stock_anterior }}</td>
+                            <td class="text-center">{{ movimiento.stock_posterior }}</td>
+                            <td>{{ movimiento.referencia|default:"-" }}</td>
+                            <td>{{ movimiento.registrado_por.username }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- Paginación -->
+            {% if page.has_other_pages %}
+                <div class="pagination">
+                    {% if page.has_previous %}
+                        <a href="?page=1" class="pagination-link">« Primera</a>
+                        <a href="?page={{ page.previous_page_number }}" class="pagination-link">← Anterior</a>
+                    {% endif %}
+
+                    <span class="pagination-info">
+                        Página {{ page.number }} de {{ page.paginator.num_pages }}
+                    </span>
+
+                    {% if page.has_next %}
+                        <a href="?page={{ page.next_page_number }}" class="pagination-link">Siguiente →</a>
+                        <a href="?page={{ page.paginator.num_pages }}" class="pagination-link">Última »</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="empty-state">
+                <span class="empty-icon">📋</span>
+                <p>No hay movimientos registrados</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Botones de Acción -->
+    <div class="historial-actions">
+        <a href="{% url 'tienda:inventario' %}" class="btn btn-secondary">
+            ← Volver al Inventario
+        </a>
+    </div>
+</div>
+
+<style>
+    .historial-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .historial-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .historial-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+
+    .header-subtitle {
+        color: var(--text-muted);
+        font-size: 1.05rem;
+    }
+
+    /* Filtros */
+    .historial-filters {
+        background-color: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .filter-form {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 150px;
+    }
+
+    .filter-group label {
+        font-weight: 600;
+        color: var(--text-light);
+        font-size: 0.9rem;
+    }
+
+    .filter-group input,
+    .filter-group select {
+        padding: 8px 12px;
+        background-color: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text-light);
+    }
+
+    .filter-group input:focus,
+    .filter-group select:focus {
+        outline: none;
+        border-color: var(--primary);
+    }
+
+    /* Stats */
+    .historial-stats {
+        background-color: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-label {
+        display: block;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--primary);
+    }
+
+    /* Table Wrapper */
+    .historial-table-wrapper {
+        background-color: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+
+    .historial-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .historial-table thead {
+        background-color: var(--bg-tertiary);
+        border-bottom: 2px solid var(--border);
+    }
+
+    .historial-table th {
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-light);
+        font-size: 0.95rem;
+    }
+
+    .historial-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .historial-table tbody tr:hover {
+        background-color: rgba(255, 107, 0, 0.05);
+    }
+
+    /* Type Badges */
+    .type-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .type-entrada {
+        background-color: rgba(34, 197, 94, 0.2);
+        color: #22c55e;
+    }
+
+    .type-salida {
+        background-color: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+    }
+
+    .type-ajuste {
+        background-color: rgba(245, 158, 11, 0.2);
+        color: #f59e0b;
+    }
+
+    .type-devolucion {
+        background-color: rgba(59, 130, 246, 0.2);
+        color: #3b82f6;
+    }
+
+    /* Quantity Colors */
+    .qty-green {
+        color: #22c55e;
+        font-weight: 600;
+    }
+
+    .qty-red {
+        color: #ef4444;
+        font-weight: 600;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        padding: 20px;
+        border-top: 1px solid var(--border);
+        flex-wrap: wrap;
+    }
+
+    .pagination-link {
+        padding: 8px 12px;
+        background-color: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--primary);
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .pagination-link:hover {
+        background-color: var(--primary);
+        color: white;
+    }
+
+    .pagination-info {
+        padding: 8px 12px;
+        color: var(--text-muted);
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        display: block;
+        margin-bottom: 10px;
+    }
+
+    /* Actions */
+    .historial-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .filter-form {
+            flex-direction: column;
+        }
+
+        .filter-group {
+            width: 100%;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            width: 100%;
+        }
+
+        .historial-table {
+            font-size: 0.85rem;
+        }
+
+        .historial-table th,
+        .historial-table td {
+            padding: 8px;
+        }
+
+        .type-badge {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+        }
+    }
+</style>
+{% endblock %}

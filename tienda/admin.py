@@ -2,7 +2,7 @@
 Registro de modelos en el admin de Django para la aplicación tienda.
 """
 from django.contrib import admin
-from .models import Tienda, Producto, UsuarioTienda, Venta, CierreCaja
+from .models import Tienda, Producto, UsuarioTienda, Venta, CierreCaja, StockActual, MovimientoInventario
 
 
 @admin.register(Tienda)
@@ -107,3 +107,52 @@ class CierreCajaAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+@admin.register(StockActual)
+class StockActualAdmin(admin.ModelAdmin):
+    list_display = ('producto', 'tienda', 'cantidad', 'stock_minimo', 'estado_texto', 'ultima_actualizacion')
+    list_filter = ('tienda', 'ultima_actualizacion')
+    search_fields = ('producto__nombre', 'tienda__nombre')
+    readonly_fields = ('ultima_actualizacion',)
+    fieldsets = (
+        ('Información', {
+            'fields': ('tienda', 'producto')
+        }),
+        ('Stock', {
+            'fields': ('cantidad', 'stock_minimo')
+        }),
+        ('Auditoría', {
+            'fields': ('ultima_actualizacion',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(MovimientoInventario)
+class MovimientoInventarioAdmin(admin.ModelAdmin):
+    list_display = ('fecha_movimiento', 'tienda', 'producto', 'tipo_movimiento', 'cantidad', 'stock_anterior', 'stock_posterior')
+    list_filter = ('tipo_movimiento', 'tienda', 'fecha_movimiento', 'producto__categoria')
+    search_fields = ('producto__nombre', 'tienda__nombre', 'referencia')
+    readonly_fields = ('stock_anterior', 'stock_posterior', 'fecha_movimiento')
+    date_hierarchy = 'fecha_movimiento'
+    fieldsets = (
+        ('Información del Movimiento', {
+            'fields': ('tienda', 'producto', 'tipo_movimiento')
+        }),
+        ('Tipo Específico', {
+            'fields': ('tipo_entrada', 'tipo_salida'),
+            'classes': ('collapse',)
+        }),
+        ('Cantidades', {
+            'fields': ('cantidad', 'stock_anterior', 'stock_posterior')
+        }),
+        ('Detalles', {
+            'fields': ('referencia', 'descripcion')
+        }),
+        ('Auditoría', {
+            'fields': ('registrado_por', 'fecha_movimiento'),
+            'classes': ('collapse',)
+        }),
+    )
+

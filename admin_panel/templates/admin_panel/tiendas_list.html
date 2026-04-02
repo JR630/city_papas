@@ -9,7 +9,7 @@
 </div>
 
 <div style="text-align: right; margin-bottom: 1rem;">
-    <a href="{% url 'crear-tienda' %}" class="btn btn-primary">
+    <a href="{% url 'admin_panel:crear-tienda' %}" class="btn btn-primary">
         ➕ CREAR NUEVA TIENDA
     </a>
 </div>
@@ -56,7 +56,7 @@
                                 <a href="{% url 'admin_panel:tienda-detail' tienda.id %}" class="btn btn-small" style="background-color: #2A2A2A; color: #FF6B00; border: 1px solid #FF6B00; margin-right: 0.25rem;">
                                     Ver
                                 </a>
-                                <a href="{% url 'editar-tienda' tienda.id %}" class="btn btn-small" style="background-color: #2A2A2A; color: #FFD600; border: 1px solid #FFD600;">
+                                <a href="{% url 'admin_panel:editar-tienda' tienda.id %}" class="btn btn-small" style="background-color: #2A2A2A; color: #FFD600; border: 1px solid #FFD600;">
                                     Editar
                                 </a>
                             </td>

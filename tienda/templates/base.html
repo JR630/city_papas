@@ -35,9 +35,6 @@
                     <li class="navbar-item {% if 'producto' in request.resolver_match.url_name %}active{% endif %}">
                         <a href="{% url 'admin_panel:productos-list' %}">Productos</a>
                     </li>
-                    <li class="navbar-item {% if 'usuario' in request.resolver_match.url_name %}active{% endif %}">
-                        <a href="{% url 'admin_panel:usuarios-list' %}">Usuarios</a>
-                    </li>
                     <li class="navbar-item {% if 'reporte' in request.resolver_match.url_name %}active{% endif %}">
                         <a href="{% url 'admin_panel:reportes' %}">Reportes</a>
                     </li>

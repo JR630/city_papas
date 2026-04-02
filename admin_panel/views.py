@@ -31,6 +31,12 @@ def admin_dashboard_view(request):
     if not verificar_admin(request.user):
         return redirect('tienda:tienda-dashboard')
     
+    try:
+        usuario_tienda = request.user.usuario_tienda
+        rol = usuario_tienda.rol
+    except:
+        rol = 'administrador'
+    
     hoy = timezone.now().date()
     hace_7_dias = hoy - timedelta(days=7)
     
@@ -81,7 +87,7 @@ def admin_dashboard_view(request):
         'datos_7_dias': datos_7_dias,
         'datos_tiendas': datos_tiendas,
         'datos_productos': datos_productos,
-        'rol': 'administrador',
+        'rol': rol,
     }
     
     return render(request, 'admin_panel/dashboard.html', context)
@@ -100,9 +106,15 @@ def tiendas_list_view(request):
         ))
     ).order_by('nombre')
     
+    try:
+        usuario_tienda = request.user.usuario_tienda
+        rol_ctx = usuario_tienda.rol
+    except:
+        rol_ctx = 'administrador'
+    
     context = {
         'tiendas': tiendas,
-        'rol': 'administrador',
+        'rol': rol_ctx,
     }
     
     return render(request, 'admin_panel/tiendas_list.html', context)
@@ -140,6 +152,12 @@ def tienda_detail_view(request, tienda_id):
     
     usuarios = tienda.usuarios.select_related('usuario')
     
+    try:
+        usuario_tienda = request.user.usuario_tienda
+        rol_ctx = usuario_tienda.rol
+    except:
+        rol_ctx = 'administrador'
+    
     context = {
         'tienda': tienda,
         'ventas': ventas,
@@ -148,7 +166,7 @@ def tienda_detail_view(request, tienda_id):
         'usuarios': usuarios,
         'fecha_desde': fecha_desde,
         'fecha_hasta': fecha_hasta,
-        'rol': 'administrador',
+        'rol': rol_ctx,
     }
     
     return render(request, 'admin_panel/tienda_detail.html', context)
@@ -171,7 +189,8 @@ def crear_tienda_view(request):
         # Validaciones
         if Tienda.objects.filter(nombre=nombre).exists():
             return render(request, 'admin_panel/crear_editar_tienda.html', {
-                'error': 'Una tienda con ese nombre ya existe.'
+                'error': 'Una tienda con ese nombre ya existe.',
+                'rol': 'administrador',
             })
         
         tienda = Tienda.objects.create(
@@ -230,11 +249,17 @@ def productos_list_view(request):
     
     categorias = Producto.objects.values_list('categoria', flat=True).distinct()
     
+    try:
+        usuario_tienda = request.user.usuario_tienda
+        rol_ctx = usuario_tienda.rol
+    except:
+        rol_ctx = 'administrador'
+    
     context = {
         'productos': productos,
         'categorias': categorias,
         'categoria_filtro': categoria,
-        'rol': 'administrador',
+        'rol': rol_ctx,
     }
     
     return render(request, 'admin_panel/productos_list.html', context)
@@ -264,7 +289,8 @@ def crear_producto_view(request):
             return redirect('admin_panel:productos-list')
         except Exception as e:
             return render(request, 'admin_panel/crear_editar_producto.html', {
-                'error': f'Error al crear producto: {str(e)}'
+                'error': f'Error al crear producto: {str(e)}',
+                'rol': 'administrador',
             })
     
     categorias = [c[0] for c in Producto._meta.get_field('categoria').choices]
@@ -318,120 +344,6 @@ def eliminar_producto_view(request, producto_id):
     producto.save()
     
     return redirect('admin_panel:productos-list')
-
-
-@login_required(login_url='login')
-def usuarios_list_view(request):
-    """Lista de usuarios con gestión."""
-    if not verificar_admin(request.user):
-        return redirect('tienda:tienda-dashboard')
-    
-    tienda_id = request.GET.get('tienda')
-    usuarios = UsuarioTienda.objects.select_related('usuario', 'tienda')
-    
-    if tienda_id:
-        usuarios = usuarios.filter(tienda_id=tienda_id)
-    
-    tiendas = Tienda.objects.filter(activa=True).order_by('nombre')
-    
-    context = {
-        'usuarios': usuarios,
-        'tiendas': tiendas,
-        'tienda_filtro': tienda_id,
-        'rol': 'administrador',
-    }
-    
-    return render(request, 'admin_panel/usuarios_list.html', context)
-
-
-@login_required(login_url='login')
-@require_http_methods(["GET", "POST"])
-def crear_usuario_view(request):
-    """Crear un nuevo usuario."""
-    if not verificar_admin(request.user):
-        return redirect('tienda:tienda-dashboard')
-    
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        password = request.POST.get('password')
-        rol = request.POST.get('rol')
-        tienda_id = request.POST.get('tienda')
-        
-        # Validaciones
-        if User.objects.filter(username=username).exists():
-            return render(request, 'admin_panel/crear_editar_usuario.html', {
-                'error': 'El nombre de usuario ya existe.',
-                'tiendas': Tienda.objects.filter(activa=True),
-            })
-        
-        try:
-            user = User.objects.create_user(
-                username=username,
-                email=email,
-                password=password,
-            )
-            
-            tienda = None
-            if tienda_id and rol == 'tienda':
-                tienda = get_object_or_404(Tienda, id=tienda_id)
-            
-            UsuarioTienda.objects.create(
-                usuario=user,
-                tienda=tienda,
-                rol=rol,
-            )
-            
-            return redirect('admin_panel:usuarios-list')
-        except Exception as e:
-            return render(request, 'admin_panel/crear_editar_usuario.html', {
-                'error': f'Error: {str(e)}',
-                'tiendas': Tienda.objects.filter(activa=True),
-            })
-    
-    tiendas = Tienda.objects.filter(activa=True).order_by('nombre')
-    context = {
-        'tiendas': tiendas,
-        'roles': [('tienda', 'Tienda'), ('administrador', 'Administrador')],
-        'rol': 'administrador',
-    }
-    
-    return render(request, 'admin_panel/crear_editar_usuario.html', context)
-
-
-@login_required(login_url='login')
-@require_http_methods(["GET", "POST"])
-def editar_usuario_view(request, usuario_id):
-    """Editar un usuario existente."""
-    if not verificar_admin(request.user):
-        return redirect('tienda:tienda-dashboard')
-    
-    usuario_tienda = get_object_or_404(UsuarioTienda, id=usuario_id)
-    
-    if request.method == 'POST':
-        usuario_tienda.rol = request.POST.get('rol')
-        
-        if usuario_tienda.rol == 'tienda':
-            tienda_id = request.POST.get('tienda')
-            usuario_tienda.tienda = get_object_or_404(Tienda, id=tienda_id) if tienda_id else None
-        else:
-            usuario_tienda.tienda = None
-        
-        usuario_tienda.activo = request.POST.get('activo') == 'on'
-        usuario_tienda.save()
-        
-        return redirect('admin_panel:usuarios-list')
-    
-    tiendas = Tienda.objects.filter(activa=True).order_by('nombre')
-    context = {
-        'usuario_tienda': usuario_tienda,
-        'tiendas': tiendas,
-        'roles': [('tienda', 'Tienda'), ('administrador', 'Administrador')],
-        'editando': True,
-        'rol': 'administrador',
-    }
-    
-    return render(request, 'admin_panel/crear_editar_usuario.html', context)
 
 
 @login_required(login_url='login')
@@ -495,6 +407,12 @@ def reportes_view(request):
     # Calcular promedio
     promedio = total / cantidad if cantidad > 0 else Decimal('0.00')
     
+    try:
+        usuario_tienda = request.user.usuario_tienda
+        rol_ctx = usuario_tienda.rol
+    except:
+        rol_ctx = 'administrador'
+    
     context = {
         'ventas': ventas,
         'total': total,
@@ -509,7 +427,7 @@ def reportes_view(request):
         'fecha_hasta': fecha_hasta,
         'tienda_filtro': tienda_id,
         'producto_filtro': producto_id,
-        'rol': 'administrador',
+        'rol': rol_ctx,
     }
     
     return render(request, 'admin_panel/reportes.html', context)

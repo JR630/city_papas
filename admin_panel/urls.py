@@ -22,11 +22,6 @@ urlpatterns = [
     path('productos/<int:producto_id>/editar/', views.editar_producto_view, name='editar-producto'),
     path('productos/<int:producto_id>/eliminar/', views.eliminar_producto_view, name='eliminar-producto'),
     
-    # Gestión de usuarios
-    path('usuarios/', views.usuarios_list_view, name='usuarios-list'),
-    path('usuarios/crear/', views.crear_usuario_view, name='crear-usuario'),
-    path('usuarios/<int:usuario_id>/editar/', views.editar_usuario_view, name='editar-usuario'),
-    
     # Reportes
     path('reportes/', views.reportes_view, name='reportes'),
     path('reportes/exportar/', views.exportar_reportes_view, name='exportar-reportes'),

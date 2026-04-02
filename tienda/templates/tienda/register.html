@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar Tienda - CityPapa{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-box">
+        <h1 style="text-align: left; color: #FF6B00;">Registrar Tienda</h1>
+        <p class="subtitle" style="text-align: left;">Crea tu cuenta para comenzar a registrar ventas</p>
+        
+        {% if errores %}
+            {% for error in errores %}
+                <div class="alert alert-danger">
+                    ⚠️ {{ error }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <h3 style="color: #FFD600; font-size: 1.2rem; margin-top: 1.5rem; margin-bottom: 1rem;">Información de Acceso</h3>
+            
+            <div class="form-group">
+                <label for="username">Usuario</label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="Nombre de usuario" required value="{{ username }}">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="Mínimo 6 caracteres" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password_confirm">Confirmar Contraseña</label>
+                <input type="password" id="password_confirm" name="password_confirm" class="form-control" placeholder="Repite tu contraseña" required>
+            </div>
+            
+            <h3 style="color: #FFD600; font-size: 1.2rem; margin-top: 1.5rem; margin-bottom: 1rem;">Información de la Tienda</h3>
+            
+            <div class="form-group">
+                <label for="tienda_nombre">Nombre de la Tienda</label>
+                <input type="text" id="tienda_nombre" name="tienda_nombre" class="form-control" placeholder="Nombre de tu tienda" required value="{{ tienda_nombre }}">
+            </div>
+            
+            <div class="form-group">
+                <label for="tienda_email">Email</label>
+                <input type="email" id="tienda_email" name="tienda_email" class="form-control" placeholder="email@ejemplo.com" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="tienda_telefono">Teléfono</label>
+                <input type="tel" id="tienda_telefono" name="tienda_telefono" class="form-control" placeholder="+57 300 000 0000" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="tienda_ciudad">Ciudad</label>
+                <input type="text" id="tienda_ciudad" name="tienda_ciudad" class="form-control" placeholder="Tu ciudad" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="tienda_direccion">Dirección</label>
+                <textarea id="tienda_direccion" name="tienda_direccion" class="form-control" placeholder="Dirección completa de tu tienda" required></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top: 1.5rem;">
+                CREAR CUENTA
+            </button>
+        </form>
+        
+        <div class="login-links">
+            <span>¿Ya tienes cuenta?</span>
+            <a href="{% url 'login' %}">Inicia Sesión</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    
+    .login-box {
+        max-width: 550px;
+    }
+</style>
+{% endblock %}

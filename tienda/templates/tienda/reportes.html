@@ -1,0 +1,478 @@
+{% extends 'base.html' %}
+
+{% block title %}Reportes - Cierres de Caja{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Reportes de Cierres de Caja</h1>
+    <p>Resumen consolidado de ambas sedes</p>
+</div>
+
+<!-- Filtros -->
+<div class="card" style="background-color: #2A2A2A;">
+    <form method="get" class="flex-wrap" style="gap: 1rem;">
+        <div style="flex: 1; min-width: 200px;">
+            <label for="fecha_desde" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Desde</label>
+            <input type="date" id="fecha_desde" name="fecha_desde" class="form-control" value="{{ fecha_desde }}" style="margin-bottom: 0;">
+        </div>
+        
+        <div style="flex: 1; min-width: 200px;">
+            <label for="fecha_hasta" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Hasta</label>
+            <input type="date" id="fecha_hasta" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" style="margin-bottom: 0;">
+        </div>
+
+        <div style="flex: 1; min-width: 150px;">
+            <label for="tienda" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Tienda</label>
+            <select id="tienda" name="tienda" class="form-control" style="margin-bottom: 0;">
+                <option value="">Todas las tiendas</option>
+                {% for tienda in tiendas %}
+                    <option value="{{ tienda.id }}" {% if tienda_filtro == tienda.id|stringformat:"s" %}selected{% endif %}>
+                        {{ tienda.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div style="flex: 1; min-width: 150px; display: flex; align-items: flex-end; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary" style="flex: 1; margin-bottom: 0;">
+                🔍 Filtrar
+            </button>
+            <a href="{% url 'tienda:reportes' %}" class="btn btn-secondary" style="margin-bottom: 0;">
+                ↻ Limpiar
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Resumen General -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Resumen Consolidado</h2>
+    </div>
+    
+    <div class="card-body">
+        <div class="resumen-grid">
+            <div class="resumen-item">
+                <div class="resumen-label">Total Efectivo Esperado</div>
+                <div class="resumen-value">${{ resumen.total_efectivo_esperado }}</div>
+            </div>
+            
+            <div class="resumen-item">
+                <div class="resumen-label">Total Efectivo Contado</div>
+                <div class="resumen-value">${{ resumen.total_efectivo_contado }}</div>
+            </div>
+            
+            <div class="resumen-item">
+                <div class="resumen-label">Diferencia Efectivo</div>
+                <div class="resumen-value {% if resumen.diferencia_total == 0 %}diferencia-ok{% elif resumen.diferencia_total > 0 %}diferencia-sobrante{% else %}diferencia-faltante{% endif %}">
+                    {% if resumen.diferencia_total > 0 %}
+                        +${{ resumen.diferencia_total|stringformat:".2f" }}
+                    {% elif resumen.diferencia_total < 0 %}
+                        ${{ resumen.diferencia_total|stringformat:".2f" }}
+                    {% else %}
+                        $0.00
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="resumen-item">
+                <div class="resumen-label">Total General (Todos Métodos)</div>
+                <div class="resumen-value" style="color: #FFD600;">${{ resumen.total_general }}</div>
+            </div>
+        </div>
+
+        <!-- Métodos de Pago -->
+        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #333;">
+            <h3 style="color: #CCCCCC; margin-bottom: 1rem;">Ingresos por Método de Pago</h3>
+            <div class="metodos-grid">
+                <div class="metodo-card">
+                    <div class="metodo-icon">💵</div>
+                    <div class="metodo-label">Efectivo</div>
+                    <div class="metodo-value">${{ resumen.total_efectivo_contado }}</div>
+                </div>
+
+                <div class="metodo-card">
+                    <div class="metodo-icon">💳</div>
+                    <div class="metodo-label">Tarjeta Crédito</div>
+                    <div class="metodo-value">${{ resumen.total_tarjeta_credito }}</div>
+                </div>
+
+                <div class="metodo-card">
+                    <div class="metodo-icon">💳</div>
+                    <div class="metodo-label">Tarjeta Débito</div>
+                    <div class="metodo-value">${{ resumen.total_tarjeta_debito }}</div>
+                </div>
+
+                <div class="metodo-card">
+                    <div class="metodo-icon">🏦</div>
+                    <div class="metodo-label">Transferencia</div>
+                    <div class="metodo-value">${{ resumen.total_transferencia }}</div>
+                </div>
+
+                <div class="metodo-card">
+                    <div class="metodo-icon">📱</div>
+                    <div class="metodo-label">Nequi</div>
+                    <div class="metodo-value">${{ resumen.total_nequi }}</div>
+                </div>
+
+                <div class="metodo-card">
+                    <div class="metodo-icon">💰</div>
+                    <div class="metodo-label">Otro</div>
+                    <div class="metodo-value">${{ resumen.total_otro }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de Cierres de Caja -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Registro Detallado de Cierres ({{ cantidad_cierres }})</h2>
+    </div>
+    
+    <div class="card-body">
+        {% if cierres %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tienda</th>
+                            <th style="text-align: center;">Transacciones</th>
+                            <th style="text-align: right;">Efectivo Esperado</th>
+                            <th style="text-align: right;">Efectivo Contado</th>
+                            <th style="text-align: right;">Diferencia</th>
+                            <th>Estado</th>
+                            <th>Registrado por</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cierre in cierres %}
+                            <tr class="cierre-row" onclick="toggleCierreDetalles('cierre-{{ cierre.id }}')">
+                                <td><strong>{{ cierre.fecha_cierre|date:"d/m/Y" }}</strong></td>
+                                <td>{{ cierre.tienda.nombre }}</td>
+                                <td style="text-align: center;">{{ cierre.cantidad_transacciones }}</td>
+                                <td style="text-align: right;">${{ cierre.total_efectivo_esperado }}</td>
+                                <td style="text-align: right;">${{ cierre.total_efectivo_contado }}</td>
+                                <td style="text-align: right;">
+                                    <span class="diferencia-badge {% if cierre.diferencia_efectivo == 0 %}cierre-ok{% elif cierre.diferencia_efectivo > 0 %}cierre-sobrante{% else %}cierre-faltante{% endif %}">
+                                        {% if cierre.diferencia_efectivo > 0 %}
+                                            +${{ cierre.diferencia_efectivo|stringformat:".2f" }}
+                                        {% elif cierre.diferencia_efectivo < 0 %}
+                                            ${{ cierre.diferencia_efectivo|stringformat:".2f" }}
+                                        {% else %}
+                                            $0.00
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="estado-badge {% if cierre.status_efectivo == 'Cuadrado' %}estado-cuadrado{% elif cierre.status_efectivo == 'Sobrante' %}estado-sobrante{% else %}estado-faltante{% endif %}">
+                                        {{ cierre.status_efectivo }}
+                                    </span>
+                                </td>
+                                <td>{{ cierre.registrado_por.username }}</td>
+                            </tr>
+                            <tr class="cierre-detalles-row" id="cierre-{{ cierre.id }}" style="display: none;">
+                                <td colspan="8">
+                                    <div class="cierre-detalles">
+                                        <div class="detalles-grid">
+                                            <div class="detalle-section">
+                                                <h4>Resumen por Método de Pago</h4>
+                                                <ul class="metodos-list">
+                                                    <li>
+                                                        <span class="metodo-icon">💵</span>
+                                                        <span>Efectivo</span>
+                                                        <span class="metodo-total">${{ cierre.total_efectivo_contado }}</span>
+                                                    </li>
+                                                    {% if cierre.total_tarjeta_credito > 0 %}
+                                                    <li>
+                                                        <span class="metodo-icon">💳</span>
+                                                        <span>Tarjeta Crédito</span>
+                                                        <span class="metodo-total">${{ cierre.total_tarjeta_credito }}</span>
+                                                    </li>
+                                                    {% endif %}
+                                                    {% if cierre.total_tarjeta_debito > 0 %}
+                                                    <li>
+                                                        <span class="metodo-icon">💳</span>
+                                                        <span>Tarjeta Débito</span>
+                                                        <span class="metodo-total">${{ cierre.total_tarjeta_debito }}</span>
+                                                    </li>
+                                                    {% endif %}
+                                                    {% if cierre.total_transferencia > 0 %}
+                                                    <li>
+                                                        <span class="metodo-icon">🏦</span>
+                                                        <span>Transferencia</span>
+                                                        <span class="metodo-total">${{ cierre.total_transferencia }}</span>
+                                                    </li>
+                                                    {% endif %}
+                                                    {% if cierre.total_nequi > 0 %}
+                                                    <li>
+                                                        <span class="metodo-icon">📱</span>
+                                                        <span>Nequi</span>
+                                                        <span class="metodo-total">${{ cierre.total_nequi }}</span>
+                                                    </li>
+                                                    {% endif %}
+                                                    {% if cierre.total_otro > 0 %}
+                                                    <li>
+                                                        <span class="metodo-icon">💰</span>
+                                                        <span>Otro</span>
+                                                        <span class="metodo-total">${{ cierre.total_otro }}</span>
+                                                    </li>
+                                                    {% endif %}
+                                                </ul>
+                                            </div>
+                                            
+                                            {% if cierre.notas %}
+                                            <div class="detalle-section">
+                                                <h4>Notas</h4>
+                                                <div class="notas-content">
+                                                    {{ cierre.notas }}
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="detalles-footer">
+                                            <span class="registrado-por">Registrado por: {{ cierre.registrado_por.username }} | {{ cierre.fecha_registro|date:"d/m/Y H:i" }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p style="text-align: center; color: #AAAAAA; padding: 3rem;">
+                No hay cierres de caja registrados con los filtros seleccionados.
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+<div style="text-align: center; margin-top: 2rem;">
+    <a href="{% url 'admin-dashboard' %}" class="btn btn-secondary">
+        ← Volver al Dashboard
+    </a>
+</div>
+
+<style>
+    .resumen-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .resumen-item {
+        background-color: #1A1A1A;
+        padding: 1.5rem;
+        border-radius: 8px;
+        border: 1px solid #333;
+    }
+
+    .resumen-label {
+        font-size: 0.85rem;
+        color: #AAAAAA;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.75rem;
+    }
+
+    .resumen-value {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #CCCCCC;
+    }
+
+    .diferencia-ok {
+        color: #06A87D !important;
+    }
+
+    .diferencia-sobrante {
+        color: #FFD600 !important;
+    }
+
+    .diferencia-faltante {
+        color: #E74C3C !important;
+    }
+
+    .metodos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+
+    .metodo-card {
+        background-color: #1A1A1A;
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .metodo-icon {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .metodo-label {
+        font-size: 0.85rem;
+        color: #AAAAAA;
+        margin-bottom: 0.5rem;
+    }
+
+    .metodo-value {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: #FFD600;
+    }
+
+    .cierre-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .cierre-row:hover {
+        background-color: rgba(255, 107, 0, 0.1);
+    }
+
+    .cierre-detalles-row {
+        background-color: rgba(0, 0, 0, 0.2);
+    }
+
+    .cierre-detalles {
+        padding: 20px;
+        background-color: rgba(255, 107, 0, 0.05);
+        border-left: 3px solid #FF6B00;
+        border-radius: 4px;
+    }
+
+    .detalles-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .detalle-section h4 {
+        margin-top: 0;
+        color: var(--text-light);
+        margin-bottom: 12px;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .metodos-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .metodos-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 107, 0, 0.1);
+        font-size: 0.95rem;
+    }
+
+    .metodos-list li:last-child {
+        border-bottom: none;
+    }
+
+    .metodo-icon {
+        font-size: 1.2rem;
+        min-width: 30px;
+        text-align: center;
+    }
+
+    .metodo-total {
+        color: #FFD600;
+        font-weight: 600;
+        min-width: 70px;
+        text-align: right;
+    }
+
+    .notas-content {
+        background-color: rgba(0, 0, 0, 0.3);
+        padding: 12px;
+        border-radius: 4px;
+        color: #CCCCCC;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-size: 0.9rem;
+    }
+
+    .detalles-footer {
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 107, 0, 0.1);
+        font-size: 0.85rem;
+        color: #888888;
+    }
+
+    .diferencia-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .cierre-ok {
+        background-color: rgba(6, 168, 125, 0.15);
+        color: #06A87D;
+    }
+
+    .cierre-sobrante {
+        background-color: rgba(255, 215, 0, 0.15);
+        color: #FFD600;
+    }
+
+    .cierre-faltante {
+        background-color: rgba(231, 76, 60, 0.15);
+        color: #E74C3C;
+    }
+
+    .estado-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .estado-cuadrado {
+        background-color: rgba(6, 168, 125, 0.2);
+        color: #06A87D;
+    }
+
+    .estado-sobrante {
+        background-color: rgba(255, 215, 0, 0.2);
+        color: #FFD600;
+    }
+
+    .estado-faltante {
+        background-color: rgba(231, 76, 60, 0.2);
+        color: #E74C3C;
+    }
+</style>
+
+<script>
+    function toggleCierreDetalles(elementId) {
+        const elemento = document.getElementById(elementId);
+        if (elemento.style.display === 'none') {
+            elemento.style.display = 'table-row';
+        } else {
+            elemento.style.display = 'none';
+        }
+    }
+</script>
+
+{% endblock %}

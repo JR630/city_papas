@@ -1,0 +1,602 @@
+{% extends 'base.html' %}
+
+{% block title %}Cerrar Caja - {{ tienda.nombre }}{% endblock %}
+
+{% block content %}
+<div class="tienda-dashboard">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div>
+            <h1>Cerrar Caja</h1>
+            <p class="header-info">{{ tienda.nombre }} • Fecha: {{ hoy|date:"d/m/Y" }}</p>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <div class="header-badge">
+                <span class="badge-label">Resumen de Caja</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alertas -->
+    {% if error %}
+    <div class="alert alert-error">
+        <span class="alert-icon">⚠️</span>
+        <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    {% if cierre_completado %}
+    <div class="alert alert-success">
+        <span class="alert-icon">✅</span>
+        <span>{{ mensaje_exito|default:"Cierre de caja completado correctamente" }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Resumen por Método de Pago -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Resumen de Ingresos por Método de Pago</h2>
+        </div>
+        
+        <div class="card-body">
+            <div class="pagos-grid">
+                <!-- Efectivo -->
+                <div class="pago-card pago-efectivo">
+                    <div class="pago-icon">💵</div>
+                    <div class="pago-content">
+                        <div class="pago-metodo">Efectivo</div>
+                        <div class="pago-cantidad">{{ resumen_dict.efectivo.cantidad }} operaciones</div>
+                        <div class="pago-total">${{ resumen_dict.efectivo.total }}</div>
+                    </div>
+                </div>
+
+                <!-- Tarjeta Crédito -->
+                <div class="pago-card pago-tarjeta">
+                    <div class="pago-icon">💳</div>
+                    <div class="pago-content">
+                        <div class="pago-metodo">Tarjeta Crédito</div>
+                        <div class="pago-cantidad">{{ resumen_dict.tarjeta_credito.cantidad }} operaciones</div>
+                        <div class="pago-total">${{ resumen_dict.tarjeta_credito.total }}</div>
+                    </div>
+                </div>
+
+                <!-- Tarjeta Débito -->
+                <div class="pago-card pago-tarjeta">
+                    <div class="pago-icon">💳</div>
+                    <div class="pago-content">
+                        <div class="pago-metodo">Tarjeta Débito</div>
+                        <div class="pago-cantidad">{{ resumen_dict.tarjeta_debito.cantidad }} operaciones</div>
+                        <div class="pago-total">${{ resumen_dict.tarjeta_debito.total }}</div>
+                    </div>
+                </div>
+
+                <!-- Transferencia -->
+                <div class="pago-card pago-transferencia">
+                    <div class="pago-icon">🏦</div>
+                    <div class="pago-content">
+                        <div class="pago-metodo">Transferencia</div>
+                        <div class="pago-cantidad">{{ resumen_dict.transferencia.cantidad }} operaciones</div>
+                        <div class="pago-total">${{ resumen_dict.transferencia.total }}</div>
+                    </div>
+                </div>
+
+                <!-- Nequi -->
+                <div class="pago-card pago-nequi">
+                    <div class="pago-icon">📱</div>
+                    <div class="pago-content">
+                        <div class="pago-metodo">Nequi</div>
+                        <div class="pago-cantidad">{{ resumen_dict.nequi.cantidad }} operaciones</div>
+                        <div class="pago-total">${{ resumen_dict.nequi.total }}</div>
+                    </div>
+                </div>
+
+                <!-- Otros -->
+                <div class="pago-card pago-otro">
+                    <div class="pago-icon">💰</div>
+                    <div class="pago-content">
+                        <div class="pago-metodo">Otro</div>
+                        <div class="pago-cantidad">{{ resumen_dict.otro.cantidad }} operaciones</div>
+                        <div class="pago-total">${{ resumen_dict.otro.total }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total General -->
+            <div class="total-resumen">
+                <div class="total-label">TOTAL INGRESOS DEL DÍA</div>
+                <div class="total-amount">${{ total_general }}</div>
+                <div class="total-transacciones">{{ cantidad_ventas }} transacciones registradas</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Validación de Efectivo -->
+    {% if not cierre_completado %}
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Validación de Efectivo</h2>
+        </div>
+        
+        <div class="card-body">
+            <form method="POST" class="form-cerrar-caja">
+                {% csrf_token %}
+                
+                <!-- Monto Esperado -->
+                <div class="form-group">
+                    <label for="monto_esperado" class="form-label">Monto Esperado en Caja (Efectivo):</label>
+                    <div class="form-control-display">
+                        ${{ total_efectivo_esperado }}
+                    </div>
+                    <input type="hidden" name="monto_esperado" value="{{ total_efectivo_esperado }}" />
+                </div>
+
+                <!-- Monto Contado -->
+                <div class="form-group">
+                    <label for="efectivo_contado" class="form-label">Monto Contado en Caja:</label>
+                    <div class="input-wrapper">
+                        <span class="input-prefix">$</span>
+                        <input 
+                            type="number" 
+                            id="efectivo_contado" 
+                            name="efectivo_contado" 
+                            class="form-control" 
+                            placeholder="0.00"
+                            step="0.01"
+                            min="0"
+                            required
+                            oninput="calcularDiferencia()"
+                        />
+                    </div>
+                </div>
+
+                <!-- Diferencia (Calculada) -->
+                <div class="form-group">
+                    <label for="diferencia" class="form-label">Diferencia:</label>
+                    <div class="form-control-display diferencia-display" id="diferencia-display">
+                        $0.00
+                    </div>
+                </div>
+
+                <!-- Indicador de Diferencia -->
+                <div class="diferencia-indicator" id="diferencia-indicator">
+                    <span class="indicator-icon">ℹ️</span>
+                    <span class="indicator-text">Ingresa el monto contado para calcular la diferencia</span>
+                </div>
+
+                <!-- Notas Opcionales -->
+                <div class="form-group">
+                    <label for="notas" class="form-label">Notas Adicionales (Opcional):</label>
+                    <textarea 
+                        id="notas" 
+                        name="notas" 
+                        class="form-control textarea" 
+                        placeholder="Anota cualquier discrepancia o información importante"
+                        rows="4"
+                    ></textarea>
+                </div>
+
+                <!-- Botones -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        ✓ Confirmar Cierre de Caja
+                    </button>
+                    <a href="{% url 'tienda:tienda-dashboard' %}" class="btn btn-secondary">
+                        ← Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <!-- Resumen Final del Cierre -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Resumen del Cierre</h2>
+        </div>
+        
+        <div class="card-body">
+            <div class="cierre-resumen">
+                <div class="resumen-row">
+                    <span class="resumen-label">Monto Esperado (Efectivo):</span>
+                    <span class="resumen-value">${{ total_efectivo_esperado }}</span>
+                </div>
+                <div class="resumen-row">
+                    <span class="resumen-label">Monto Contado:</span>
+                    <span class="resumen-value">${{ efectivo_contado }}</span>
+                </div>
+                <div class="resumen-row resumen-total">
+                    <span class="resumen-label">Diferencia:</span>
+                    <span class="resumen-value {% if diferencia == 0 %}diferencia-ok{% elif diferencia > 0 %}diferencia-sobrante{% else %}diferencia-faltante{% endif %}">
+                        {% if diferencia > 0 %}
+                            +${{ diferencia }}
+                        {% elif diferencia < 0 %}
+                            -${{ diferencia|add:0|stringformat:".2f" }}
+                        {% else %}
+                            $0.00
+                        {% endif %}
+                    </span>
+                </div>
+                
+                {% if notas %}
+                <div class="resumen-notas">
+                    <strong>Notas:</strong>
+                    <p>{{ notas }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="form-actions" style="margin-top: 2rem;">
+                <a href="{% url 'tienda:tienda-dashboard' %}" class="btn btn-primary">
+                    ← Volver al Dashboard
+                </a>
+                <a href="{% url 'tienda:cerrar-caja' %}" class="btn btn-secondary">
+                    Nuevo Cierre de Caja
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    /* Grilla de métodos de pago */
+    .pagos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .pago-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.5rem;
+        border-radius: 8px;
+        background-color: rgba(255, 107, 0, 0.05);
+        border-left: 3px solid #FF6B00;
+        transition: all 0.3s ease;
+    }
+
+    .pago-card:hover {
+        background-color: rgba(255, 107, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .pago-icon {
+        font-size: 2.5rem;
+        min-width: 60px;
+        text-align: center;
+    }
+
+    .pago-content {
+        flex: 1;
+    }
+
+    .pago-metodo {
+        font-size: 0.9rem;
+        color: #AAAAAA;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .pago-cantidad {
+        font-size: 0.85rem;
+        color: #888888;
+        margin: 0.25rem 0;
+    }
+
+    .pago-total {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #FFD600;
+        margin-top: 0.5rem;
+    }
+
+    /* Variantes de colores */
+    .pago-tarjeta {
+        border-left-color: #00A8E8;
+        background-color: rgba(0, 168, 232, 0.05);
+    }
+
+    .pago-tarjeta:hover {
+        background-color: rgba(0, 168, 232, 0.1);
+    }
+
+    .pago-transferencia {
+        border-left-color: #06A77D;
+        background-color: rgba(6, 168, 125, 0.05);
+    }
+
+    .pago-transferencia:hover {
+        background-color: rgba(6, 168, 125, 0.1);
+    }
+
+    .pago-nequi {
+        border-left-color: #E74C3C;
+        background-color: rgba(231, 76, 60, 0.05);
+    }
+
+    .pago-nequi:hover {
+        background-color: rgba(231, 76, 60, 0.1);
+    }
+
+    .pago-otro {
+        border-left-color: #9B59B6;
+        background-color: rgba(155, 89, 182, 0.05);
+    }
+
+    .pago-otro:hover {
+        background-color: rgba(155, 89, 182, 0.1);
+    }
+
+    /* Total Resumen */
+    .total-resumen {
+        background: linear-gradient(135deg, rgba(255, 107, 0, 0.1) 0%, rgba(255, 215, 0, 0.05) 100%);
+        border: 2px solid rgba(255, 107, 0, 0.3);
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        margin-top: 2rem;
+    }
+
+    .total-label {
+        font-size: 0.9rem;
+        color: #AAAAAA;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 0.5rem;
+    }
+
+    .total-amount {
+        font-size: 3rem;
+        font-weight: bold;
+        color: #FFD600;
+        margin: 1rem 0;
+    }
+
+    .total-transacciones {
+        font-size: 0.9rem;
+        color: #888888;
+    }
+
+    /* Formulario */
+    .form-cerrar-caja {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-label {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #CCCCCC;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-control-display {
+        background-color: #1A1A1A;
+        border: 1px solid #444444;
+        padding: 0.75rem 1rem;
+        border-radius: 4px;
+        color: #FFD600;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+
+    .input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .input-prefix {
+        position: absolute;
+        left: 1rem;
+        color: #888888;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+
+    .form-control {
+        padding-left: 2.5rem;
+    }
+
+    /* Diferencia */
+    .diferencia-display {
+        color: #CCCCCC;
+        font-size: 1.3rem;
+    }
+
+    .diferencia-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem;
+        background-color: rgba(0, 168, 232, 0.1);
+        border-left: 3px solid #00A8E8;
+        border-radius: 4px;
+        color: #CCCCCC;
+        font-size: 0.9rem;
+    }
+
+    .indicator-icon {
+        font-size: 1.2rem;
+        min-width: 25px;
+    }
+
+    .diferencia-ok {
+        color: #06A77D !important;
+    }
+
+    .diferencia-sobrante {
+        color: #FFD600 !important;
+    }
+
+    .diferencia-faltante {
+        color: #E74C3C !important;
+    }
+
+    .textarea {
+        resize: vertical;
+        font-family: inherit;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    /* Resumen del Cierre */
+    .cierre-resumen {
+        background-color: #1A1A1A;
+        padding: 2rem;
+        border-radius: 8px;
+        border: 1px solid #333333;
+    }
+
+    .resumen-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid rgba(255, 107, 0, 0.1);
+        font-size: 1rem;
+    }
+
+    .resumen-row:last-of-type {
+        border-bottom: 2px solid rgba(255, 107, 0, 0.3);
+    }
+
+    .resumen-total {
+        padding: 1.5rem 0;
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+
+    .resumen-label {
+        color: #AAAAAA;
+    }
+
+    .resumen-value {
+        color: #CCCCCC;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .resumen-notas {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid rgba(255, 107, 0, 0.1);
+    }
+
+    .resumen-notas strong {
+        color: #FFD600;
+        display: block;
+        margin-bottom: 0.75rem;
+    }
+
+    .resumen-notas p {
+        color: #CCCCCC;
+        line-height: 1.5;
+        white-space: pre-wrap;
+    }
+
+    /* Alertas */
+    .alert {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        font-size: 0.95rem;
+    }
+
+    .alert-error {
+        background-color: rgba(231, 76, 60, 0.1);
+        border-left: 3px solid #E74C3C;
+        color: #FFB3AD;
+    }
+
+    .alert-success {
+        background-color: rgba(6, 168, 125, 0.1);
+        border-left: 3px solid #06A77D;
+        color: #A8E6D9;
+    }
+
+    .alert-icon {
+        font-size: 1.3rem;
+        min-width: 25px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .pagos-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+        }
+
+        .total-amount {
+            font-size: 2rem;
+        }
+
+        .resumen-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .resumen-value {
+            align-self: flex-end;
+        }
+    }
+</style>
+
+<script>
+    function calcularDiferencia() {
+        const efectivoContado = parseFloat(document.getElementById('efectivo_contado').value) || 0;
+        const montoEsperado = {{ total_efectivo_esperado|safe }};
+        const diferencia = efectivoContado - montoEsperado;
+        
+        const difereciaDisplay = document.getElementById('diferencia-display');
+        const indicator = document.getElementById('diferencia-indicator');
+        
+        if (diferencia > 0) {
+            difereciaDisplay.textContent = '+$' + diferencia.toFixed(2);
+            difereciaDisplay.className = 'form-control-display diferencia-display diferencia-sobrante';
+            indicator.innerHTML = '<span class="indicator-icon">📈</span><span class="indicator-text">Sobrante en caja: +$' + diferencia.toFixed(2) + '</span>';
+            indicator.style.backgroundColor = 'rgba(255, 215, 0, 0.1)';
+            indicator.style.borderLeftColor = '#FFD600';
+        } else if (diferencia < 0) {
+            difereciaDisplay.textContent = '-$' + Math.abs(diferencia).toFixed(2);
+            difereciaDisplay.className = 'form-control-display diferencia-display diferencia-faltante';
+            indicator.innerHTML = '<span class="indicator-icon">📉</span><span class="indicator-text">Faltante en caja: -$' + Math.abs(diferencia).toFixed(2) + '</span>';
+            indicator.style.backgroundColor = 'rgba(231, 76, 60, 0.1)';
+            indicator.style.borderLeftColor = '#E74C3C';
+        } else {
+            difereciaDisplay.textContent = '$0.00';
+            difereciaDisplay.className = 'form-control-display diferencia-display diferencia-ok';
+            indicator.innerHTML = '<span class="indicator-icon">✅</span><span class="indicator-text">Caja cuadrada correctamente</span>';
+            indicator.style.backgroundColor = 'rgba(6, 168, 125, 0.1)';
+            indicator.style.borderLeftColor = '#06A77D';
+        }
+    }
+</script>
+{% endblock %}

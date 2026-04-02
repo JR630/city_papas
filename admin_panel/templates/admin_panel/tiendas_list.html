@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Tiendas{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Gestión de Tiendas</h1>
+    <p>Administra todas las sucursales de CityPapa</p>
+</div>
+
+<div style="text-align: right; margin-bottom: 1rem;">
+    <a href="{% url 'crear-tienda' %}" class="btn btn-primary">
+        ➕ CREAR NUEVA TIENDA
+    </a>
+</div>
+
+<div class="card">
+    <div class="table-wrapper">
+        {% if tiendas %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Ciudad</th>
+                        <th>Teléfono</th>
+                        <th>Usuarios</th>
+                        <th>Ventas Hoy</th>
+                        <th>Estado</th>
+                        <th style="text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tienda in tiendas %}
+                        <tr>
+                            <td>
+                                <strong>{{ tienda.nombre }}</strong>
+                            </td>
+                            <td>{{ tienda.ciudad }}</td>
+                            <td>{{ tienda.telefono }}</td>
+                            <td style="text-align: center;">{{ tienda.cantidad_usuarios }}</td>
+                            <td style="color: #FFD600; font-weight: bold;">
+                                ${{ tienda.total_ventas_hoy|default:0 }}
+                            </td>
+                            <td>
+                                {% if tienda.activa %}
+                                    <span style="background-color: rgba(34, 197, 94, 0.2); color: #86efac; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem;">
+                                        ✓ Activa
+                                    </span>
+                                {% else %}
+                                    <span style="background-color: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem;">
+                                        ✗ Inactiva
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center;">
+                                <a href="{% url 'admin_panel:tienda-detail' tienda.id %}" class="btn btn-small" style="background-color: #2A2A2A; color: #FF6B00; border: 1px solid #FF6B00; margin-right: 0.25rem;">
+                                    Ver
+                                </a>
+                                <a href="{% url 'editar-tienda' tienda.id %}" class="btn btn-small" style="background-color: #2A2A2A; color: #FFD600; border: 1px solid #FFD600;">
+                                    Editar
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p style="text-align: center; color: #AAAAAA; padding: 3rem;">
+                No hay tiendas registradas. <a href="{% url 'admin_panel:crear-tienda' %}">Crea una ahora</a>
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

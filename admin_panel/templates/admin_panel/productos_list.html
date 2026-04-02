@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Productos{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Gestión de Productos</h1>
+    <p>Administra el catálogo de productos</p>
+</div>
+
+<div style="text-align: right; margin-bottom: 1rem;">
+    <a href="{% url 'admin_panel:crear-producto' %}" class="btn btn-primary">
+        ➕ CREAR PRODUCTO
+    </a>
+</div>
+
+<!-- Filtro por categoría -->
+<div class="card" style="background-color: #2A2A2A; margin-bottom: 1.5rem;">
+    <form method="get" class="flex-wrap" style="gap: 1rem;">
+        <select name="categoria" class="form-control" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+            <option value="">--- Todas las Categorías ---</option>
+            {% for cat in categorias %}
+                <option value="{{ cat }}" {% if categoria_filtro == cat %}selected{% endif %}>
+                    {{ cat|upper }}
+                </option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary" style="margin-bottom: 0;">Filtrar</button>
+        <a href="{% url 'admin_panel:productos-list' %}" class="btn btn-secondary" style="margin-bottom: 0;">Limpiar</a>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-wrapper">
+        {% if productos %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Categoría</th>
+                        <th>Precio</th>
+                        <th>Estado</th>
+                        <th style="text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for producto in productos %}
+                        <tr>
+                            <td>
+                                <strong>{{ producto.nombre }}</strong>
+                                {% if producto.descripcion %}
+                                    <div style="font-size: 0.9rem; color: #AAAAAA;">{{ producto.descripcion|truncatewords:10 }}</div>
+                                {% endif %}
+                            </td>
+                            <td>{{ producto.get_categoria_display }}</td>
+                            <td style="color: #FFD600; font-weight: bold;">${{ producto.precio }}</td>
+                            <td>
+                                {% if producto.disponible %}
+                                    <span style="background-color: rgba(34, 197, 94, 0.2); color: #86efac; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem;">
+                                        ✓ Disponible
+                                    </span>
+                                {% else %}
+                                    <span style="background-color: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem;">
+                                        ✗ No disponible
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center;">
+                                <a href="{% url 'admin_panel:editar-producto' producto.id %}" class="btn btn-small" style="background-color: #2A2A2A; color: #FFD600; border: 1px solid #FFD600; margin-right: 0.25rem;">
+                                    Editar
+                                </a>
+                                <form method="post" action="{% url 'admin_panel:eliminar-producto' producto.id %}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-small" style="background-color: #2A2A2A; color: #EF4444; border: 1px solid #EF4444;" onclick="return confirm('¿Desactivar este producto?');">
+                                        Desactivar
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p style="text-align: center; color: #AAAAAA; padding: 3rem;">
+                No hay productos con los filtros seleccionados.
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

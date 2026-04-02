@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+
+{% block title %}Reportes{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Sistema de Reportes</h1>
+    <p>Análisis y exportación de datos de ventas</p>
+</div>
+
+<!-- Filtros avanzados -->
+<div class="card" style="background-color: #2A2A2A;">
+    <form method="get" class="flex-wrap" style="gap: 1rem;">
+        <div style="flex: 1; min-width: 150px;">
+            <label for="fecha_desde" style="display: block; margin-bottom: 0.3rem; font-size: 0.9rem;">Desde</label>
+            <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}" style="margin: 0;">
+        </div>
+        
+        <div style="flex: 1; min-width: 150px;">
+            <label for="fecha_hasta" style="display: block; margin-bottom: 0.3rem; font-size: 0.9rem;">Hasta</label>
+            <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" style="margin: 0;">
+        </div>
+        
+        <div style="flex: 1; min-width: 150px;">
+            <label for="tienda" style="display: block; margin-bottom: 0.3rem; font-size: 0.9rem;">Tienda</label>
+            <select name="tienda" class="form-control" style="margin: 0;">
+                <option value="">--- Todas ---</option>
+                {% for tienda in tiendas %}
+                    <option value="{{ tienda.id }}" {% if tienda_filtro|stringformat:"s" == tienda.id|stringformat:"s" %}selected{% endif %}>
+                        {{ tienda.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div style="flex: 1; min-width: 150px;">
+            <label for="producto" style="display: block; margin-bottom: 0.3rem; font-size: 0.9rem;">Producto</label>
+            <select name="producto" class="form-control" style="margin: 0;">
+                <option value="">--- Todos ---</option>
+                {% for producto in productos %}
+                    <option value="{{ producto.id }}" {% if producto_filtro|stringformat:"s" == producto.id|stringformat:"s" %}selected{% endif %}>
+                        {{ producto.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div style="display: flex; align-items: flex-end; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary btn-small" style="margin-bottom: 0;">
+                🔍 Filtrar
+            </button>
+            <a href="{% url 'admin_panel:reportes' %}" class="btn btn-secondary btn-small" style="margin-bottom: 0;">
+                ↻ Limpiar
+            </a>
+            <a href="{% url 'admin_panel:exportar-reportes' %}?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&tienda={{ tienda_filtro }}" class="btn btn-secondary btn-small" style="margin-bottom: 0;">
+                📥 Exportar CSV
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Resumen general -->
+<div class="grid grid-3" style="margin-top: 1.5rem;">
+    <div class="metric-card">
+        <div class="metric-label">Total de Ventas</div>
+        <div class="metric-value">{{ cantidad }}</div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-label">Ingresos Totales</div>
+        <div class="metric-value">${{ total }}</div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-label">Promedio por Venta</div>
+        <div class="metric-value" style="color: #FFD600;">
+            {% if cantidad > 0 %}
+                ${{ promedio|stringformat:".2f" }}
+            {% else %}
+                $0.00
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Resumen por tienda -->
+<div class="grid grid-2" style="margin-top: 2rem;">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Ingresos por Tienda</h3>
+        </div>
+        <div class="card-body">
+            {% if resumen_tienda %}
+                <div class="table-wrapper">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Tienda</th>
+                                <th style="text-align: center;">Ventas</th>
+                                <th style="text-align: right;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in resumen_tienda %}
+                                <tr>
+                                    <td>{{ item.tienda__nombre }}</td>
+                                    <td style="text-align: center;">{{ item.cantidad }}</td>
+                                    <td style="text-align: right; color: #FFD600; font-weight: bold;">
+                                        ${{ item.total }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Resumen por producto -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Ingresos por Producto</h3>
+        </div>
+        <div class="card-body">
+            {% if resumen_producto %}
+                <div class="table-wrapper">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th style="text-align: center;">Unidades</th>
+                                <th style="text-align: right;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in resumen_producto %}
+                                <tr>
+                                    <td>
+                                        {{ item.producto__nombre }}
+                                        <div style="font-size: 0.8rem; color: #AAAAAA;">
+                                            {{ item.producto__categoria|upper }}
+                                        </div>
+                                    </td>
+                                    <td style="text-align: center;">{{ item.cantidad }}</td>
+                                    <td style="text-align: right; color: #FFD600; font-weight: bold;">
+                                        ${{ item.total }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Resumen por día -->
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h3 class="card-title">Ingresos por Día</h3>
+    </div>
+    <div class="card-body">
+        {% if resumen_dia %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th style="text-align: center;">Transacciones</th>
+                            <th style="text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in resumen_dia %}
+                            <tr>
+                                <td>{{ item.fecha_venta|date:"d/m/Y" }}</td>
+                                <td style="text-align: center;">{{ item.cantidad }}</td>
+                                <td style="text-align: right; color: #FFD600; font-weight: bold;">
+                                    ${{ item.total }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

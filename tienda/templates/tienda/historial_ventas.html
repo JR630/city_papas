@@ -1,0 +1,523 @@
+{% extends 'base.html' %}
+
+{% block title %}Historial de Ventas{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Historial de Ventas</h1>
+    <p>Consulta todas tus órdenes registradas</p>
+</div>
+
+<!-- Filtros -->
+<div class="card" style="background-color: #2A2A2A;">
+    <form method="get" class="flex-wrap" style="gap: 1rem;">
+        <div style="flex: 1; min-width: 200px;">
+            <label for="fecha_desde" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Desde</label>
+            <input type="date" id="fecha_desde" name="fecha_desde" class="form-control" value="{{ fecha_desde }}" style="margin-bottom: 0;">
+        </div>
+        
+        <div style="flex: 1; min-width: 200px;">
+            <label for="fecha_hasta" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Hasta</label>
+            <input type="date" id="fecha_hasta" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" style="margin-bottom: 0;">
+        </div>
+        
+        <div style="flex: 1; min-width: 150px; display: flex; align-items: flex-end; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary" style="flex: 1; margin-bottom: 0;">
+                🔍 Filtrar
+            </button>
+            <a href="{% url 'tienda:historial-ventas' %}" class="btn btn-secondary" style="margin-bottom: 0;">
+                ↻ Limpiar
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Tabla de órdenes agrupadas -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Órdenes del Día</h2>
+    </div>
+    
+    <div class="card-body">
+        {% if ordenes %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Orden #</th>
+                            <th style="text-align: center;">Items</th>
+                            <th style="text-align: right;">Total Orden</th>
+                            <th>Método de Pago</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for orden in ordenes %}
+                            <tr class="orden-row" onclick="toggleDetalles('orden-{{ orden.numero_orden }}')">
+                                <td>{{ orden.fecha_venta|date:"d/m/Y" }}</td>
+                                <td><strong>{{ orden.cliente_nombre }}</strong></td>
+                                <td><span class="badge">{{ orden.numero_orden|truncatechars:20 }}</span></td>
+                                <td style="text-align: center;">{{ orden.productos|length }}</td>
+                                <td style="text-align: right; color: #FFD600; font-weight: bold;">${{ orden.total }}</td>
+                                <td>
+                                    <span class="metodo-pago-badge">
+                                        {% if 'efectivo' == orden.metodo_pago %}💵 Efectivo
+                                        {% elif 'tarjeta_credito' == orden.metodo_pago %}💳 Tarjeta Crédito
+                                        {% elif 'tarjeta_debito' == orden.metodo_pago %}💳 Tarjeta Débito
+                                        {% elif 'transferencia' == orden.metodo_pago %}🏦 Transferencia
+                                        {% elif 'nequi' == orden.metodo_pago %}📱 Nequi
+                                        {% else %}💰 Otro
+                                        {% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr class="detalles-row" id="orden-{{ orden.numero_orden }}" style="display: none;">
+                                <td colspan="6">
+                                    <div class="orden-detalles">
+                                        <h4>Productos en esta orden:</h4>
+                                        <ul class="productos-list">
+                                            {% for producto in orden.productos %}
+                                                <li>
+                                                    <span class="prod-nombre">{{ producto.nombre }}</span>
+                                                    <span class="prod-cant">x{{ producto.cantidad }}</span>
+                                                    <span class="prod-total">${{ producto.total }}</span>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="color: #AAAAAA;">Total de órdenes: <strong>{{ cantidad_ordenes }}</strong></span>
+                </div>
+                <div>
+                    <span style="color: #AAAAAA;">TOTAL DEL DÍA:</span>
+                    <span style="color: #FFD600; font-weight: bold; font-size: 1.5rem; margin-left: 0.5rem;">
+                        ${{ total_general }}
+                    </span>
+                </div>
+            </div>
+        {% else %}
+            <p style="text-align: center; color: #AAAAAA; padding: 3rem;">
+                No hay órdenes registradas con los filtros seleccionados.
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Registro de Cierres de Caja -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Registro de Cierres de Caja</h2>
+    </div>
+    
+    <div class="card-body">
+        {% if cierres_caja %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Fecha de Cierre</th>
+                            <th style="text-align: center;">Transacciones</th>
+                            <th style="text-align: right;">Efectivo Esperado</th>
+                            <th style="text-align: right;">Efectivo Contado</th>
+                            <th style="text-align: right;">Diferencia</th>
+                            <th>Estado</th>
+                            <th style="text-align: center;">Notas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cierre in cierres_caja %}
+                            <tr class="cierre-row" onclick="toggleCierreDetalles('cierre-{{ cierre.id }}')">
+                                <td><strong>{{ cierre.fecha_cierre|date:"d/m/Y" }}</strong></td>
+                                <td style="text-align: center;">{{ cierre.cantidad_transacciones }}</td>
+                                <td style="text-align: right;">${{ cierre.total_efectivo_esperado }}</td>
+                                <td style="text-align: right;">${{ cierre.total_efectivo_contado }}</td>
+                                <td style="text-align: right;">
+                                    <span class="diferencia-badge {% if cierre.diferencia_efectivo == 0 %}cierre-ok{% elif cierre.diferencia_efectivo > 0 %}cierre-sobrante{% else %}cierre-faltante{% endif %}">
+                                        {% if cierre.diferencia_efectivo > 0 %}
+                                            +${{ cierre.diferencia_efectivo }}
+                                        {% elif cierre.diferencia_efectivo < 0 %}
+                                            -${{ cierre.diferencia_efectivo|add:0|stringformat:".2f" }}
+                                        {% else %}
+                                            $0.00
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="estado-badge {% if cierre.status_efectivo == 'Cuadrado' %}estado-cuadrado{% elif cierre.status_efectivo == 'Sobrante' %}estado-sobrante{% else %}estado-faltante{% endif %}">
+                                        {{ cierre.status_efectivo }}
+                                    </span>
+                                </td>
+                                <td style="text-align: center;">
+                                    {% if cierre.notas %}
+                                        <span class="btn-notas-icon">📝</span>
+                                    {% else %}
+                                        <span class="btn-notas-icon-empty">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr class="cierre-detalles-row" id="cierre-{{ cierre.id }}" style="display: none;">
+                                <td colspan="7">
+                                    <div class="cierre-detalles">
+                                        <div class="detalles-grid">
+                                            <div class="detalle-section">
+                                                <h4>Resumen por Método de Pago</h4>
+                                                <ul class="metodos-list">
+                                                    <li>
+                                                        <span class="metodo-icon">💵</span>
+                                                        <span>Efectivo</span>
+                                                        <span class="metodo-total">${{ cierre.total_efectivo_contado }}</span>
+                                                    </li>
+                                                    {% if cierre.total_tarjeta_credito > 0 %}
+                                                    <li>
+                                                        <span class="metodo-icon">💳</span>
+                                                        <span>Tarjeta Crédito</span>
+                                                        <span class="metodo-total">${{ cierre.total_tarjeta_credito }}</span>
+                                                    </li>
+                                                    {% endif %}
+                                                    {% if cierre.total_tarjeta_debito > 0 %}
+                                                    <li>
+                                                        <span class="metodo-icon">💳</span>
+                                                        <span>Tarjeta Débito</span>
+                                                        <span class="metodo-total">${{ cierre.total_tarjeta_debito }}</span>
+                                                    </li>
+                                                    {% endif %}
+                                                    {% if cierre.total_transferencia > 0 %}
+                                                    <li>
+                                                        <span class="metodo-icon">🏦</span>
+                                                        <span>Transferencia</span>
+                                                        <span class="metodo-total">${{ cierre.total_transferencia }}</span>
+                                                    </li>
+                                                    {% endif %}
+                                                    {% if cierre.total_nequi > 0 %}
+                                                    <li>
+                                                        <span class="metodo-icon">📱</span>
+                                                        <span>Nequi</span>
+                                                        <span class="metodo-total">${{ cierre.total_nequi }}</span>
+                                                    </li>
+                                                    {% endif %}
+                                                    {% if cierre.total_otro > 0 %}
+                                                    <li>
+                                                        <span class="metodo-icon">💰</span>
+                                                        <span>Otro</span>
+                                                        <span class="metodo-total">${{ cierre.total_otro }}</span>
+                                                    </li>
+                                                    {% endif %}
+                                                </ul>
+                                            </div>
+                                            
+                                            {% if cierre.notas %}
+                                            <div class="detalle-section">
+                                                <h4>Notas Adicionales</h4>
+                                                <div class="notas-content">
+                                                    {{ cierre.notas }}
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="detalles-footer">
+                                            <span class="registrado-por">Registrado por: {{ cierre.registrado_por.username }} | {{ cierre.fecha_registro|date:"d/m/Y H:i" }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p style="text-align: center; color: #AAAAAA; padding: 3rem;">
+                No hay cierres de caja registrados.
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+<div style="text-align: center; margin-top: 2rem;">
+    <a href="{% url 'tienda:tienda-dashboard' %}" class="btn btn-secondary">
+        ← Volver al Dashboard
+    </a>
+</div>
+
+<style>
+    .orden-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .orden-row:hover {
+        background-color: rgba(255, 107, 0, 0.1);
+    }
+
+    .detalles-row {
+        background-color: rgba(0, 0, 0, 0.2);
+    }
+
+    .orden-detalles {
+        padding: 15px;
+        background-color: rgba(255, 107, 0, 0.05);
+        border-left: 3px solid #FF6B00;
+        border-radius: 4px;
+    }
+
+    .orden-detalles h4 {
+        margin-top: 0;
+        color: var(--text-light);
+        margin-bottom: 12px;
+        font-size: 1rem;
+    }
+
+    .productos-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .productos-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 107, 0, 0.1);
+        font-size: 0.95rem;
+    }
+
+    .productos-list li:last-child {
+        border-bottom: none;
+    }
+
+    .prod-nombre {
+        flex: 1;
+        color: var(--text-light);
+        font-weight: 500;
+    }
+
+    .prod-cant {
+        color: var(--text-muted);
+        min-width: 50px;
+        text-align: center;
+    }
+
+    .prod-precio {
+        color: var(--text-muted);
+        min-width: 70px;
+        text-align: right;
+    }
+
+    .prod-total {
+        color: #FFD600;
+        font-weight: 600;
+        min-width: 70px;
+        text-align: right;
+    }
+
+    .badge {
+        display: inline-block;
+        background-color: rgba(255, 107, 0, 0.2);
+        color: var(--primary);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-family: monospace;
+    }
+
+    .metodo-pago {
+        font-size: 1.2rem;
+        display: inline-block;
+    }
+
+    .metodo-pago-badge {
+        display: inline-block;
+        background-color: rgba(255, 107, 0, 0.15);
+        color: var(--primary);
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    /* Cierres de Caja */
+    .cierre-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .cierre-row:hover {
+        background-color: rgba(255, 107, 0, 0.1);
+    }
+
+    .cierre-detalles-row {
+        background-color: rgba(0, 0, 0, 0.2);
+    }
+
+    .cierre-detalles {
+        padding: 20px;
+        background-color: rgba(255, 107, 0, 0.05);
+        border-left: 3px solid #FF6B00;
+        border-radius: 4px;
+    }
+
+    .detalles-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .detalle-section h4 {
+        margin-top: 0;
+        color: var(--text-light);
+        margin-bottom: 12px;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .metodos-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .metodos-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 107, 0, 0.1);
+        font-size: 0.95rem;
+    }
+
+    .metodos-list li:last-child {
+        border-bottom: none;
+    }
+
+    .metodo-icon {
+        font-size: 1.2rem;
+        min-width: 30px;
+        text-align: center;
+    }
+
+    .metodo-total {
+        color: #FFD600;
+        font-weight: 600;
+        min-width: 70px;
+        text-align: right;
+    }
+
+    .notas-content {
+        background-color: rgba(0, 0, 0, 0.3);
+        padding: 12px;
+        border-radius: 4px;
+        color: #CCCCCC;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-size: 0.9rem;
+    }
+
+    .detalles-footer {
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 107, 0, 0.1);
+        font-size: 0.85rem;
+        color: #888888;
+    }
+
+    .registrado-por {
+        display: block;
+        color: #888888;
+    }
+
+    /* Badges de diferencia */
+    .diferencia-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .cierre-ok {
+        background-color: rgba(6, 168, 125, 0.15);
+        color: #06A87D;
+    }
+
+    .cierre-sobrante {
+        background-color: rgba(255, 215, 0, 0.15);
+        color: #FFD600;
+    }
+
+    .cierre-faltante {
+        background-color: rgba(231, 76, 60, 0.15);
+        color: #E74C3C;
+    }
+
+    /* Badges de estado */
+    .estado-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .estado-cuadrado {
+        background-color: rgba(6, 168, 125, 0.2);
+        color: #06A87D;
+    }
+
+    .estado-sobrante {
+        background-color: rgba(255, 215, 0, 0.2);
+        color: #FFD600;
+    }
+
+    .estado-faltante {
+        background-color: rgba(231, 76, 60, 0.2);
+        color: #E74C3C;
+    }
+
+    .btn-notas-icon {
+        font-size: 1.2rem;
+        display: inline-block;
+        cursor: pointer;
+    }
+
+    .btn-notas-icon-empty {
+        color: #666666;
+        font-size: 0.9rem;
+    }
+</style>
+
+<script>
+    function toggleDetalles(elementId) {
+        const elemento = document.getElementById(elementId);
+        if (elemento.style.display === 'none') {
+            elemento.style.display = 'table-row';
+        } else {
+            elemento.style.display = 'none';
+        }
+    }
+
+    function toggleCierreDetalles(elementId) {
+        const elemento = document.getElementById(elementId);
+        if (elemento.style.display === 'none') {
+            elemento.style.display = 'table-row';
+        } else {
+            elemento.style.display = 'none';
+        }
+    }
+</script>
+
+{% endblock %}

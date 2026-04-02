@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ tienda.nombre }} - Detalle{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>{{ tienda.nombre }}</h1>
+    <p>{{ tienda.ciudad }} | {{ tienda.telefono }}</p>
+</div>
+
+<!-- Información de la tienda -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Información General</h2>
+    </div>
+    <div class="card-body">
+        <div class="grid grid-2">
+            <div>
+                <div style="color: #AAAAAA; margin-bottom: 0.5rem;">Nombre</div>
+                <div style="font-weight: 600; margin-bottom: 1rem;">{{ tienda.nombre }}</div>
+                
+                <div style="color: #AAAAAA; margin-bottom: 0.5rem;">Teléfono</div>
+                <div style="font-weight: 600; margin-bottom: 1rem;">{{ tienda.telefono }}</div>
+            </div>
+            <div>
+                <div style="color: #AAAAAA; margin-bottom: 0.5rem;">Ciudad</div>
+                <div style="font-weight: 600; margin-bottom: 1rem;">{{ tienda.ciudad }}</div>
+                
+                <div style="color: #AAAAAA; margin-bottom: 0.5rem;">Email</div>
+                <div style="font-weight: 600; margin-bottom: 1rem;">{{ tienda.email }}</div>
+            </div>
+        </div>
+        
+        <div style="color: #AAAAAA; margin-bottom: 0.5rem;">Dirección</div>
+        <div style="font-weight: 600; margin-bottom: 1rem;">{{ tienda.direccion }}</div>
+        
+        <div style="text-align: right; margin-top: 1.5rem;">
+            <a href="{% url 'admin_panel:editar-tienda' tienda.id %}" class="btn btn-primary">
+                ✏️ Editar
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Usuarios de la tienda -->
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h2 class="card-title">Usuarios de la Tienda ({{ usuarios.count }})</h2>
+    </div>
+    <div class="card-body">
+        {% if usuarios %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for usuario in usuarios %}
+                            <tr>
+                                <td><strong>{{ usuario.usuario.username }}</strong></td>
+                                <td>{{ usuario.usuario.email }}</td>
+                                <td>{{ usuario.get_rol_display }}</td>
+                                <td>
+                                    {% if usuario.activo %}
+                                        <span style="color: #86efac;">✓ Activo</span>
+                                    {% else %}
+                                        <span style="color: #fca5a5;">✗ Inactivo</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p style="text-align: center; color: #AAAAAA; padding: 2rem;">
+                No hay usuarios asignados a esta tienda.
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Ventas resumen -->
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h2 class="card-title">Ventas Históricas</h2>
+    </div>
+    <div class="card-body">
+        <!-- Filtros -->
+        <form method="get" class="flex-wrap" style="gap: 1rem; margin-bottom: 1.5rem;">
+            <div style="flex: 1; min-width: 150px;">
+                <label for="fecha_desde" style="display: block; margin-bottom: 0.3rem; font-size: 0.9rem;">Desde</label>
+                <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}" style="margin: 0;">
+            </div>
+            <div style="flex: 1; min-width: 150px;">
+                <label for="fecha_hasta" style="display: block; margin-bottom: 0.3rem; font-size: 0.9rem;">Hasta</label>
+                <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}" style="margin: 0;">
+            </div>
+            <div style="display: flex; align-items: flex-end; gap: 0.5rem;">
+                <button type="submit" class="btn btn-primary btn-small" style="margin-bottom: 0;">
+                    Filtrar
+                </button>
+                <a href="{% url 'admin_panel:tienda-detail' tienda.id %}" class="btn btn-secondary btn-small" style="margin-bottom: 0;">
+                    Limpiar
+                </a>
+            </div>
+        </form>
+        
+        {% if ventas %}
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Producto</th>
+                            <th style="text-align: center;">Cantidad</th>
+                            <th style="text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for venta in ventas %}
+                            <tr>
+                                <td>{{ venta.fecha_venta|date:"d/m/Y" }}</td>
+                                <td>{{ venta.producto.nombre }}</td>
+                                <td style="text-align: center;">{{ venta.cantidad }}</td>
+                                <td style="text-align: right; color: #FFD600; font-weight: bold;">
+                                    ${{ venta.total }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div style="text-align: right; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #333;">
+                <span style="color: #AAAAAA;">Total:</span>
+                <span style="color: #FFD600; font-weight: bold; font-size: 1.2rem; margin-left: 0.5rem;">
+                    ${{ total }}
+                </span>
+            </div>
+        {% else %}
+            <p style="text-align: center; color: #AAAAAA; padding: 2rem;">
+                No hay ventas registradas en este período.
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Botones de acción -->
+<div style="text-align: center; margin-top: 2rem;">
+    <a href="{% url 'admin_panel:tiendas-list' %}" class="btn btn-secondary">
+        ← Volver a Tiendas
+    </a>
+</div>
+
+{% endblock %}

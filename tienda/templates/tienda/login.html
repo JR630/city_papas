@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+
+{% block title %}Login - CityPapa{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-wrapper">
+        <!-- Logo y Título -->
+        <div class="login-header">
+            <h1>CITY<span style="color: #FFD600;">PAPA</span></h1>
+            <p class="subtitle">Sistema de Gestión de Ventas</p>
+        </div>
+
+        {% if error %}
+            <div class="alert alert-danger">
+                <span class="alert-icon">⚠</span>
+                {{ error }}
+            </div>
+        {% endif %}
+
+        <!-- Formulario de Login -->
+        <form method="post" class="login-form">
+            {% csrf_token %}
+            
+            <!-- Selector de Rol Visual -->
+            <div class="role-selector">
+                <label class="role-label">Selecciona tu rol:</label>
+                <div class="role-buttons">
+                    <input type="radio" id="role-admin" name="rol" value="administrador" class="role-radio" required>
+                    <label for="role-admin" class="role-button role-button-admin">
+                        <div class="role-icon">👨‍💼</div>
+                        <div class="role-name">Administrador</div>
+                        <div class="role-desc">Gestión centralizada</div>
+                    </label>
+
+                    <input type="radio" id="role-tienda" name="rol" value="tienda" class="role-radio" required>
+                    <label for="role-tienda" class="role-button role-button-tienda">
+                        <div class="role-icon">🏪</div>
+                        <div class="role-name">Tienda</div>
+                        <div class="role-desc">Mi sucursal</div>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="username">
+                    <span class="label-icon-user"></span> Usuario
+                </label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    class="form-control" 
+                    placeholder="Ingresa tu usuario" 
+                    required
+                    autocomplete="username"
+                >
+            </div>
+            
+            <div class="form-group">
+                <label for="password">
+                    <span class="label-icon-lock"></span> Contraseña
+                </label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    class="form-control" 
+                    placeholder="Ingresa tu contraseña" 
+                    required
+                    autocomplete="current-password"
+                >
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block btn-lg btn-login">
+                Acceder
+            </button>
+        </form>
+
+        <!-- Link de Registro -->
+        <div class="login-footer">
+            <p>¿Tu tienda aún no está registrada?</p>
+            <a href="{% url 'register_tienda' %}" class="btn-register">
+                Registrar Nueva Tienda →
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
+
+    .login-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: linear-gradient(135deg, #0D0D0D 0%, #1A1A1A 100%);
+    }
+
+    .login-wrapper {
+        background-color: var(--bg-secondary);
+        border: 2px solid var(--primary);
+        border-radius: 12px;
+        padding: 40px;
+        max-width: 500px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 107, 0, 0.3);
+    }
+
+    .login-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .login-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 5px;
+        color: var(--text-light);
+    }
+
+    .login-header .subtitle {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        letter-spacing: 0.05em;
+    }
+
+    .alert {
+        padding: 12px 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .alert-danger {
+        background-color: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.5);
+        color: #ff9999;
+    }
+
+    .alert-icon {
+        font-size: 1.2rem;
+    }
+
+    .login-form {
+        margin-bottom: 25px;
+    }
+
+    /* Role Selector */
+    .role-selector {
+        margin-bottom: 30px;
+    }
+
+    .role-label {
+        display: block;
+        margin-bottom: 15px;
+        font-weight: 600;
+        color: var(--text-light);
+        font-size: 0.95rem;
+    }
+
+    .role-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .role-radio {
+        display: none;
+    }
+
+    .role-button {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        border: 2px solid var(--bg-tertiary);
+        border-radius: 8px;
+        background-color: var(--bg-tertiary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+
+    .role-button:hover {
+        border-color: var(--primary);
+        background-color: rgba(255, 107, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .role-radio:checked + .role-button {
+        border-color: var(--primary);
+        background-color: rgba(255, 107, 0, 0.15);
+        box-shadow: 0 0 15px rgba(255, 107, 0, 0.3);
+    }
+
+    .role-icon {
+        font-size: 2rem;
+        margin-bottom: 8px;
+    }
+
+    .role-name {
+        font-weight: 700;
+        color: var(--text-light);
+        margin-bottom: 4px;
+    }
+
+    .role-desc {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .label-icon-user::before {
+        content: '';
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        background: linear-gradient(135deg, var(--primary), #FFD600);
+        border-radius: 50%;
+        position: relative;
+        margin-right: -8px;
+    }
+
+    .label-icon-lock::before {
+        content: '🔐';
+        font-size: 0.9rem;
+    }
+
+    .form-control {
+        padding: 12px;
+        font-size: 1rem;
+    }
+
+    .btn-login {
+        font-weight: 700;
+        font-size: 1.05rem;
+        padding: 14px;
+        margin-top: 10px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(255, 107, 0, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .btn-login:hover {
+        background-color: #E55A00;
+        box-shadow: 0 6px 20px rgba(255, 107, 0, 0.5);
+        transform: translateY(-2px);
+    }
+
+    .btn-login:active {
+        transform: translateY(0);
+    }
+
+    .login-footer {
+        text-align: center;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+    }
+
+    .login-footer p {
+        margin-bottom: 12px;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .btn-register {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: var(--bg-tertiary);
+        color: var(--primary);
+        border: 2px solid var(--primary);
+        border-radius: 6px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+    }
+
+    .btn-register:hover {
+        background-color: rgba(255, 107, 0, 0.1);
+        transform: translateX(4px);
+    }
+
+    @media (max-width: 600px) {
+        .login-wrapper {
+            padding: 25px;
+        }
+
+        .login-header h1 {
+            font-size: 2rem;
+        }
+
+        .role-buttons {
+            grid-template-columns: 1fr;
+        }
+
+        .role-button {
+            padding: 15px;
+        }
+
+        .role-icon {
+            font-size: 1.8rem;
+        }
+    }
+</style>
+{% endblock %}

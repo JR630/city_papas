@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Catálogo de Productos{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Catálogo de Productos</h1>
+    <p>Productos disponibles para vender</p>
+</div>
+
+<!-- Filtro por categoría -->
+<div class="card" style="background-color: #2A2A2A; margin-bottom: 2rem;">
+    <form method="get" class="flex-wrap" style="gap: 1rem;">
+        <div style="flex: 1; min-width: 200px;">
+            <label for="categoria" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Filtrar por Categoría</label>
+            <select id="categoria" name="categoria" class="form-control" style="margin-bottom: 0;">
+                <option value="">--- Todas las Categorías ---</option>
+                {% for cat, cat_label in categorias %}
+                    <option value="{{ cat }}" {% if categoria_filtro == cat %}selected{% endif %}>
+                        {{ cat_label|upper }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div style="flex: 1; min-width: 150px; display: flex; align-items: flex-end; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary" style="flex: 1; margin-bottom: 0;">
+                🔍 Filtrar
+            </button>
+            <a href="{% url 'tienda:catalogo-productos' %}" class="btn btn-secondary" style="margin-bottom: 0;">
+                ↻ Ver Todos
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Grid de productos -->
+{% if productos %}
+    <div class="grid grid-3">
+        {% for producto in productos %}
+            <div class="card">
+                <div style="background: linear-gradient(135deg, #FF6B00 0%, #FFD600 100%); padding: 2rem; border-radius: 4px; margin-bottom: 1rem; text-align: center;">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🍔</div>
+                    <div class="card-title" style="margin: 0; color: #0D0D0D; font-size: 1.3rem;">{{ producto.nombre }}</div>
+                </div>
+                
+                <div class="card-body">
+                    <div style="margin-bottom: 0.5rem;">
+                        <span style="background-color: #2A2A2A; color: #FFD600; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem;">
+                            {{ producto.get_categoria_display }}
+                        </span>
+                    </div>
+                    
+                    {% if producto.descripcion %}
+                        <p style="color: #AAAAAA; font-size: 0.9rem; margin-bottom: 1rem;">
+                            {{ producto.descripcion }}
+                        </p>
+                    {% endif %}
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; border-top: 1px solid #333333;">
+                        <div>
+                            <div style="color: #AAAAAA; font-size: 0.9rem;">Precio</div>
+                            <div class="metric-value" style="margin: 0;">
+                                ${{ producto.precio }}
+                            </div>
+                        </div>
+                        <a href="{% url 'tienda:registrar-venta' %}?producto={{ producto.id }}" class="btn btn-primary btn-small">
+                            Vender
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card" style="text-align: center; padding: 3rem;">
+        <p style="color: #AAAAAA; font-size: 1.1rem;">
+            No hay productos disponibles en esta categoría.
+        </p>
+    </div>
+{% endif %}
+
+<div style="text-align: center; margin-top: 2rem;">
+    <a href="{% url 'tienda:tienda-dashboard' %}" class="btn btn-secondary">
+        ← Volver al Dashboard
+    </a>
+</div>
+
+{% endblock %}

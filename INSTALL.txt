@@ -1,0 +1,74 @@
+================================================================================
+  GUÍA RÁPIDA DE INSTALACIÓN - CITYPAPA
+================================================================================
+
+REQUISITOS PREVIOS:
+- Python 3.8+
+- pip (gestor de paquetes)
+- Git (opcional)
+
+================================================================================
+PASOS DE INSTALACIÓN:
+================================================================================
+
+1. DESCARGAR Y NAVEGAR AL DIRECTORIO
+   cd city_papas
+
+2. CREAR ENTORNO VIRTUAL
+   Windows:
+     python -m venv venv
+     venv\Scripts\activate
+   
+   macOS/Linux:
+     python3 -m venv venv
+     source venv/bin/activate
+
+3. INSTALAR DEPENDENCIAS
+   pip install -r requirements.txt
+
+4. CREAR MIGRACIONES Y BASE DE DATOS
+   python manage.py makemigrations
+   python manage.py migrate
+
+5. CREAR DATOS DE PRUEBA
+   python manage.py shell < populate_db.py
+
+6. INICIAR SERVIDOR
+   python manage.py runserver
+
+7. ACCEDER A LA APLICACIÓN
+   Abre tu navegador: http://localhost:8000
+
+================================================================================
+CUENTAS DE PRUEBA:
+================================================================================
+
+ADMINISTRADOR:
+  Usuario: admin
+  Contraseña: admin123
+  Acceso: http://localhost:8000/admin-panel/dashboard/
+
+TIENDAS:
+  Usuario: tienda1 / tienda2 / tienda3
+  Contraseña: tienda1123 / tienda2123 / tienda3123
+  Acceso: http://localhost:8000/tienda/dashboard/
+
+================================================================================
+SOLUCIÓN DE PROBLEMAS:
+================================================================================
+
+Error: ModuleNotFoundError
+  → Asegúrate de estar en el directorio correcto y el venv activado
+  → Instala dependencias: pip install -r requirements.txt
+
+Error: Puerto 8000 en uso
+  → Usa otro puerto: python manage.py runserver 8001
+
+Error: Base de datos corrupta
+  → Ejecuta: python manage.py flush
+  → Luego: python manage.py migrate
+  → Y: python manage.py shell < populate_db.py
+
+================================================================================
+DOCUMENTACIÓN COMPLETA EN: README.md
+================================================================================
